@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HITRADIO AUTOBUS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wave {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: wave 8s infinite linear;
+        }
+
+        .wave:nth-child(2) {
+            animation-delay: -4s;
+        }
+
+        @keyframes wave {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 60px 80px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 40px;
+            animation: pulse 2s ease-in-out infinite;
+            letter-spacing: 2px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .play-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            position: relative;
+        }
+
+        .play-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .play-button:active {
+            transform: scale(0.95);
+        }
+
+        .play-button::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 30px solid white;
+            border-top: 20px solid transparent;
+            border-bottom: 20px solid transparent;
+            margin-left: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .play-button.playing::before {
+            border-left: 12px solid white;
+            border-right: 12px solid white;
+            border-top: 0;
+            border-bottom: 0;
+            width: 8px;
+            height: 40px;
+            margin-left: 0;
+            background: white;
+            box-shadow: 20px 0 0 white;
+        }
+
+        .play-button.playing {
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .status {
+            font-size: 18px;
+            color: #666;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+
+        .visualizer {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            height: 80px;
+            gap: 4px;
+            margin-top: 30px;
+        }
+
+        .bar {
+            width: 8px;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 4px;
+            animation: equalize 0.8s ease-in-out infinite;
+        }
+
+        .bar:nth-child(1) { animation-delay: 0s; }
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        .bar:nth-child(4) { animation-delay: 0.3s; }
+        .bar:nth-child(5) { animation-delay: 0.4s; }
+        .bar:nth-child(6) { animation-delay: 0.3s; }
+        .bar:nth-child(7) { animation-delay: 0.2s; }
+        .bar:nth-child(8) { animation-delay: 0.1s; }
+
+        @keyframes equalize {
+            0%, 100% { height: 20px; }
+            50% { height: 60px; }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Admin Panel Styles */
+        .admin-container {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 60px 80px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            backdrop-filter: blur(10px);
+        }
+
+        .pin-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 24px;
+            text-align: center;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            margin: 20px 0;
+            letter-spacing: 10px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-panel {
+            text-align: left;
+        }
+
+        .control-group {
+            margin: 25px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+        }
+
+        .mic-button {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .mic-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .mic-button.active {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            animation: pulse-red 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .error {
+            color: #f5576c;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation">
+        <div class="wave"></div>
+        <div class="wave"></div>
+    </div>
+
+    <!-- Main Radio Interface -->
+    <div class="container" id="radioInterface">
+        <div class="logo">HITRADIO AUTOBUS</div>
+        <button class="play-button" id="playButton"></button>
+        <div class="status" id="status">Click to tune in</div>
+        <div class="visualizer">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="admin-container hidden" id="adminPanel">
+        <div class="logo">ADMIN CONTROL</div>
+        
+        <div id="pinEntry">
+            <h3 style="color: #333; margin-bottom: 20px;">Enter PIN to access controls</h3>
+            <input type="password" class="pin-input" id="pinInput" maxlength="4" placeholder="****">
+            <button class="submit-btn" id="submitPin">UNLOCK</button>
+            <div class="error hidden" id="pinError">Incorrect PIN</div>
+        </div>
+
+        <div class="control-panel hidden" id="controlPanel">
+            <h3 style="color: #333; margin-bottom: 30px;">Broadcast Controls</h3>
+            
+            <div class="control-group">
+                <label>Microphone Volume</label>
+                <input type="range" id="volumeControl" min="0" max="100" value="100">
+                <span id="volumeValue">100%</span>
+            </div>
+
+            <div class="control-group">
+                <label>Microphone Preset</label>
+                <select id="presetControl">
+                    <option value="default">Default</option>
+                    <option value="voice">Voice Optimized</option>
+                    <option value="music">Music</option>
+                    <option value="podcast">Podcast</option>
+                </select>
+            </div>
+
+            <button class="mic-button" id="micButton">🎤 START BROADCASTING</button>
+            <div class="status" id="broadcastStatus">Ready to broadcast</div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer" style="display: none;"></audio>
+
+    <script>
+        // Determine which interface to show based on URL
+        const isSecret = window.location.pathname.includes('/secret');
+        const radioInterface = document.getElementById('radioInterface');
+        const adminPanel = document.getElementById('adminPanel');
+
+        if (isSecret) {
+            radioInterface.classList.add('hidden');
+            adminPanel.classList.remove('hidden');
+        }
+
+        // Main Radio Interface
+        const playButton = document.getElementById('playButton');
+        const status = document.getElementById('status');
+        const audioPlayer = document.getElementById('audioPlayer');
+        
+        let isPlaying = false;
+        let audioContext;
+        let mediaStream;
+        let destination;
+
+        playButton.addEventListener('click', async () => {
+            if (!isPlaying) {
+                // Initialize audio context if needed
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    destination = audioContext.createMediaStreamDestination();
+                }
+                
+                playButton.classList.add('playing');
+                status.textContent = 'Now Playing - HITRADIO AUTOBUS';
+                isPlaying = true;
+            } else {
+                playButton.classList.remove('playing');
+                status.textContent = 'Click to tune in';
+                isPlaying = false;
+                if (audioPlayer.srcObject) {
+                    audioPlayer.pause();
+                    audioPlayer.srcObject = null;
+                }
+            }
+        });
+
+        // Admin Panel
+        const pinInput = document.getElementById('pinInput');
+        const submitPin = document.getElementById('submitPin');
+        const pinEntry = document.getElementById('pinEntry');
+        const controlPanel = document.getElementById('controlPanel');
+        const pinError = document.getElementById('pinError');
+        const micButton = document.getElementById('micButton');
+        const broadcastStatus = document.getElementById('broadcastStatus');
+        const volumeControl = document.getElementById('volumeControl');
+        const volumeValue = document.getElementById('volumeValue');
+        const presetControl = document.getElementById('presetControl');
+
+        let isBroadcasting = false;
+        let micStream;
+        let gainNode;
+
+        submitPin.addEventListener('click', () => {
+            if (pinInput.value === '1481') {
+                pinEntry.classList.add('hidden');
+                controlPanel.classList.remove('hidden');
+                pinError.classList.add('hidden');
+            } else {
+                pinError.classList.remove('hidden');
+            }
+        });
+
+        pinInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitPin.click();
+            }
+        });
+
+        volumeControl.addEventListener('input', (e) => {
+            volumeValue.textContent = e.target.value + '%';
+            if (gainNode) {
+                gainNode.gain.value = e.target.value / 100;
+            }
+        });
+
+        micButton.addEventListener('click', async () => {
+            if (!isBroadcasting) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // Get microphone access
+                    micStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: presetControl.value === 'voice'
+                        } 
+                    });
+                    
+                    const source = audioContext.createMediaStreamSource(micStream);
+                    gainNode = audioContext.createGain();
+                    gainNode.gain.value = volumeControl.value / 100;
+                    
+                    destination = audioContext.createMediaStreamDestination();
+                    
+                    source.connect(gainNode);
+                    gainNode.connect(destination);
+                    
+                    // Note: In a real implementation, you would send this stream to a server
+                    // that would then broadcast it to the main page
+                    
+                    micButton.classList.add('active');
+                    micButton.textContent = '🎤 STOP BROADCASTING';
+                    broadcastStatus.textContent = 'Broadcasting LIVE';
+                    broadcastStatus.style.color = '#f5576c';
+                    isBroadcasting = true;
+                } catch (err) {
+                    broadcastStatus.textContent = 'Error: Microphone access denied';
+                    broadcastStatus.style.color = '#f5576c';
+                }
+            } else {
+                if (micStream) {
+                    micStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioContext) {
+                    audioContext.close();
+                }
+                
+                micButton.classList.remove('active');
+                micButton.textContent = '🎤 START BROADCASTING';
+                broadcastStatus.textContent = 'Ready to broadcast';
+                broadcastStatus.style.color = '#666';
+                isBroadcasting = false;
+            }
+        });
+
+        presetControl.addEventListener('change', () => {
+            if (isBroadcasting) {
+                broadcastStatus.textContent = 'Preset changed - restart broadcast to apply';
+            }
+        });
+    </script>
+</body>
+</html>
