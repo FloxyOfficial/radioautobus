@@ -497,6 +497,11 @@
                 <input type="range" id="volumeControl" min="0" max="100" value="100">
             </div>
 
+            <div class="control-group">
+                <label>Hlasitost monitorování <span class="volume-value" id="monitorValue">50%</span></label>
+                <input type="range" id="monitorControl" min="0" max="100" value="50">
+            </div>
+
             <button class="mic-button" id="micButton">🎤 Spustit vysílání</button>
             <div class="broadcast-status" id="broadcastStatus">Připraveno k vysílání</div>
             <div class="listeners-count" id="listenersCount">👥 0 posluchačů</div>
@@ -666,6 +671,8 @@
             const broadcastStatus = document.getElementById('broadcastStatus');
             const volumeControl = document.getElementById('volumeControl');
             const volumeValue = document.getElementById('volumeValue');
+            const monitorControl = document.getElementById('monitorControl');
+            const monitorValue = document.getElementById('monitorValue');
             const microphoneSelect = document.getElementById('microphoneSelect');
             const listenersCount = document.getElementById('listenersCount');
 
@@ -673,6 +680,7 @@
             let micStream;
             let audioContext;
             let gainNode;
+            let monitorGain;
             let processor;
             let bc;
             let listeners = 0;
@@ -763,6 +771,13 @@
                 }
             });
 
+            monitorControl.addEventListener('input', (e) => {
+                monitorValue.textContent = e.target.value + '%';
+                if (monitorGain) {
+                    monitorGain.gain.value = e.target.value / 100;
+                }
+            });
+
             micButton.addEventListener('click', async () => {
                 if (!isBroadcasting) {
                     try {
@@ -790,6 +805,10 @@
                         const source = audioContext.createMediaStreamSource(micStream);
                         gainNode = audioContext.createGain();
                         gainNode.gain.value = volumeControl.value / 100;
+                        
+                        // Create monitoring output (so you can hear yourself)
+                        monitorGain = audioContext.createGain();
+                        monitorGain.gain.value = monitorControl.value / 100;
                         
                         // Use ScriptProcessor to capture audio data (better mobile compatibility)
                         const bufferSize = 2048; // Smaller buffer for lower latency
@@ -824,6 +843,10 @@
                         source.connect(gainNode);
                         gainNode.connect(processor);
                         processor.connect(audioContext.destination);
+                        
+                        // Add monitoring path
+                        gainNode.connect(monitorGain);
+                        monitorGain.connect(audioContext.destination);
                         
                         if (bc) {
                             bc.postMessage({ type: 'stream_start' });
