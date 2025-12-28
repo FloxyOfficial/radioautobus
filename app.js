@@ -1,5 +1,11 @@
 const CORRECT_PIN = '1481';
 
+// Check if Socket.IO is loaded
+if (typeof io === 'undefined') {
+    document.body.innerHTML = '<div style="color: white; text-align: center; padding: 50px; font-family: Arial; max-width: 600px; margin: 0 auto;"><h1 style="font-size: 48px;">❌</h1><h2>Server Not Running</h2><p style="font-size: 18px; line-height: 1.6;">Please start the server first:</p><code style="background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 8px; display: block; margin: 20px 0;">npm start</code><p>Then refresh this page.</p></div>';
+    throw new Error('Socket.IO not loaded - server not running');
+}
+
 // Detect if we're on the admin page
 const isAdmin = window.location.hash === '#admin';
 
@@ -8,6 +14,25 @@ const adminPanel = document.getElementById('adminPanel');
 
 // Initialize Socket.IO connection
 const socket = io();
+
+// Handle connection errors
+socket.on('connect_error', (error) => {
+    console.error('Connection error:', error);
+    const status = document.getElementById('connectionStatus') || document.getElementById('broadcastStatus');
+    if (status) {
+        status.textContent = '❌ Nelze se připojit k serveru';
+        status.style.color = '#dc2626';
+    }
+});
+
+socket.on('connect', () => {
+    console.log('Connected to server');
+    const status = document.getElementById('connectionStatus') || document.getElementById('broadcastStatus');
+    if (status && !isAdmin) {
+        status.textContent = 'Připraveno';
+        status.classList.remove('connected');
+    }
+});
 
 // Show appropriate interface
 if (isAdmin) {
