@@ -553,7 +553,7 @@
                     } else if (event.data.type === 'audio_chunk') {
                         // Receive audio data
                         if (isPlaying && audioContext) {
-                            audioQueue.push(event.data.audioData);
+                            audioQueue.push(event.data);
                             if (!isProcessing) {
                                 processAudioQueue();
                             }
@@ -568,21 +568,28 @@
                     }
 
                     isProcessing = true;
-                    const audioData = audioQueue.shift();
+                    const data = audioQueue.shift();
 
                     try {
-                        const audioBuffer = await audioContext.decodeAudioData(audioData);
+                        // Convert array back to Float32Array
+                        const float32Array = new Float32Array(data.audioData);
+                        
+                        // Create AudioBuffer
+                        const audioBuffer = audioContext.createBuffer(1, float32Array.length, data.sampleRate || audioContext.sampleRate);
+                        audioBuffer.copyToChannel(float32Array, 0);
+                        
+                        // Play the audio
                         const source = audioContext.createBufferSource();
                         source.buffer = audioBuffer;
                         source.connect(audioContext.destination);
                         source.start(0);
                         
-                        // Wait for the audio to finish playing
+                        // Process next chunk after this one finishes
                         source.onended = () => {
                             processAudioQueue();
                         };
                     } catch (e) {
-                        console.error('Audio decode error:', e);
+                        console.error('Audio processing error:', e);
                         processAudioQueue();
                     }
                 }
@@ -761,19 +768,13 @@
                             // Get audio data
                             const inputData = e.inputBuffer.getChannelData(0);
                             
-                            // Create an AudioBuffer to encode
-                            const buffer = audioContext.createBuffer(1, inputData.length, audioContext.sampleRate);
-                            buffer.copyToChannel(inputData, 0);
-                            
-                            // Convert to array and send
-                            const audioData = inputData.slice(0);
-                            
-                            // Encode as WAV-like format for transmission
-                            const arrayBuffer = audioData.buffer.slice(0);
+                            // Convert Float32Array to regular array for transmission
+                            const audioArray = Array.from(inputData);
                             
                             bc.postMessage({ 
                                 type: 'audio_chunk', 
-                                audioData: arrayBuffer
+                                audioData: audioArray,
+                                sampleRate: audioContext.sampleRate
                             });
                         };
                         
