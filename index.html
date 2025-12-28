@@ -217,128 +217,108 @@
             font-weight: 600;
         }
 
-        .connection-status.connecting {
-            background: rgba(234, 179, 8, 0.1);
-            color: #ca8a04;
-            border-color: rgba(234, 179, 8, 0.2);
-            font-weight: 600;
+        .hidden {
+            display: none !important;
         }
 
-        .settings-button {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.95);
-            border: none;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-
-        .settings-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .settings-button svg {
-            width: 24px;
-            height: 24px;
-            fill: #7e22ce;
-        }
-
-        .admin-panel {
-            position: fixed;
-            top: 0;
-            right: -100%;
-            width: 100%;
-            max-width: 450px;
-            height: 100vh;
+        /* Admin Panel Styles */
+        .admin-container {
+            position: relative;
+            z-index: 1;
             background: rgba(255, 255, 255, 0.98);
-            box-shadow: -5px 0 30px rgba(0, 0, 0, 0.3);
-            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 999;
-            overflow-y: auto;
+            border-radius: 24px;
+            padding: 50px 70px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+            max-width: 600px;
+            width: 90%;
             backdrop-filter: blur(20px);
-        }
-
-        .admin-panel.open {
-            right: 0;
-        }
-
-        .admin-content {
-            padding: 30px;
-        }
-
-        .close-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 28px;
-            color: #666;
-            transition: all 0.3s ease;
-        }
-
-        .close-button:hover {
-            transform: rotate(90deg);
-            color: #dc2626;
+            animation: fadeIn 0.6s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .admin-logo {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 800;
             background: linear-gradient(135deg, #7e22ce 0%, #1e3c72 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             text-align: center;
             letter-spacing: 1px;
         }
 
-        .control-group {
-            margin: 25px 0;
-        }
-
-        .control-group label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 600;
+        .pin-section h3 {
             color: #333;
-            font-size: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
         }
 
-        .control-group input[type="text"] {
+        .pin-input {
             width: 100%;
-            padding: 12px;
-            font-size: 14px;
+            padding: 16px;
+            font-size: 28px;
+            text-align: center;
             border: 2px solid #7e22ce;
-            border-radius: 10px;
-            background: white;
+            border-radius: 12px;
+            margin: 20px 0;
+            letter-spacing: 12px;
             transition: all 0.3s ease;
+            font-weight: 600;
         }
 
-        .control-group input[type="text"]:focus {
+        .pin-input:focus {
             outline: none;
             border-color: #1e3c72;
             box-shadow: 0 0 0 3px rgba(126, 34, 206, 0.1);
         }
 
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #7e22ce 0%, #1e3c72 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(126, 34, 206, 0.3);
+        }
+
+        .control-panel h3 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .control-group {
+            margin: 30px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+        }
+
         .control-group select {
             width: 100%;
-            padding: 12px;
-            font-size: 15px;
+            padding: 14px;
+            font-size: 16px;
             border: 2px solid #7e22ce;
             border-radius: 10px;
             background: white;
@@ -393,8 +373,8 @@
 
         .mic-button {
             width: 100%;
-            padding: 18px;
-            font-size: 18px;
+            padding: 20px;
+            font-size: 20px;
             background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
             color: white;
             border: none;
@@ -412,6 +392,10 @@
             box-shadow: 0 12px 30px rgba(220, 38, 38, 0.4);
         }
 
+        .mic-button:active {
+            transform: translateY(0);
+        }
+
         .mic-button.active {
             background: linear-gradient(135deg, #15803d 0%, #166534 100%);
             animation: pulse-broadcast 2s ease-in-out infinite;
@@ -424,7 +408,7 @@
 
         .broadcast-status {
             text-align: center;
-            font-size: 15px;
+            font-size: 16px;
             color: #666;
             margin-top: 15px;
             font-weight: 500;
@@ -433,6 +417,14 @@
         .broadcast-status.live {
             color: #15803d;
             font-weight: 700;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 12px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 15px;
         }
 
         .listeners-count {
@@ -446,30 +438,6 @@
             font-size: 15px;
             border: 1px solid rgba(126, 34, 206, 0.15);
         }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s ease;
-            z-index: 998;
-        }
-
-        .overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        @media (max-width: 768px) {
-            .admin-panel {
-                max-width: 100%;
-            }
-        }
     </style>
 </head>
 <body>
@@ -477,48 +445,6 @@
         <div class="wave"></div>
         <div class="wave"></div>
         <div class="wave"></div>
-    </div>
-
-    <!-- Settings Button -->
-    <button class="settings-button" id="settingsButton">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
-        </svg>
-    </button>
-
-    <!-- Overlay -->
-    <div class="overlay" id="overlay"></div>
-
-    <!-- Admin Panel -->
-    <div class="admin-panel" id="adminPanel">
-        <button class="close-button" id="closeButton">×</button>
-        <div class="admin-content">
-            <div class="admin-logo">🎙️ BROADCASTER PANEL</div>
-            
-            <div class="control-group">
-                <label>WebSocket Server URL</label>
-                <input type="text" id="serverUrl" value="ws://10.0.2.15:8765" placeholder="ws://your-server:8765">
-            </div>
-
-            <div class="control-group">
-                <label>Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
-                <input type="range" id="volumeControl" min="0" max="100" value="100">
-            </div>
-
-            <div class="control-group">
-                <label>Preset mikrofonu</label>
-                <select id="presetControl">
-                    <option value="default">Výchozí</option>
-                    <option value="voice">Optimalizováno pro hlas</option>
-                    <option value="music">Hudba</option>
-                    <option value="podcast">Podcast</option>
-                </select>
-            </div>
-
-            <button class="mic-button" id="micButton">🎤 Spustit vysílání</button>
-            <div class="broadcast-status" id="broadcastStatus">Připraveno k vysílání</div>
-            <div class="listeners-count" id="listenersCount">👥 0 posluchačů</div>
-        </div>
     </div>
 
     <!-- Main Radio Interface -->
@@ -542,226 +468,317 @@
             <div class="bar"></div>
             <div class="bar"></div>
         </div>
-        <div class="connection-status" id="connectionStatus">Připojování k serveru...</div>
+        <div class="connection-status" id="connectionStatus">Připraveno</div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="admin-container hidden" id="adminPanel">
+        <div class="admin-logo">🔒 ADMIN PANEL</div>
+        
+        <div class="pin-section" id="pinEntry">
+            <h3>Zadejte PIN pro přístup</h3>
+            <input type="password" class="pin-input" id="pinInput" maxlength="4" placeholder="••••">
+            <button class="submit-btn" id="submitPin">Odemknout</button>
+            <div class="error hidden" id="pinError">❌ Nesprávný PIN</div>
+        </div>
+
+        <div class="control-panel hidden" id="controlPanel">
+            <h3>🎙️ Ovládání vysílání</h3>
+            
+            <div class="control-group">
+                <label>Vyberte mikrofon</label>
+                <select id="microphoneSelect">
+                    <option value="">Načítání mikrofonů...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
+                <input type="range" id="volumeControl" min="0" max="100" value="100">
+            </div>
+
+            <button class="mic-button" id="micButton">🎤 Spustit vysílání</button>
+            <div class="broadcast-status" id="broadcastStatus">Připraveno k vysílání</div>
+            <div class="listeners-count" id="listenersCount">👥 0 posluchačů</div>
+        </div>
     </div>
 
     <audio id="audioPlayer" style="display: none;"></audio>
 
     <script>
-        // UI Controls
-        const settingsButton = document.getElementById('settingsButton');
+        const BROADCAST_CHANNEL = 'hitradio_autobus_stream';
+        const CORRECT_PIN = '1481';
+        
+        // Detect if we're on the admin page
+        const isAdmin = window.location.hash === '#admin';
+        
+        const radioInterface = document.getElementById('radioInterface');
         const adminPanel = document.getElementById('adminPanel');
-        const closeButton = document.getElementById('closeButton');
-        const overlay = document.getElementById('overlay');
 
-        settingsButton.addEventListener('click', () => {
-            adminPanel.classList.add('open');
-            overlay.classList.add('active');
-        });
-
-        closeButton.addEventListener('click', () => {
-            adminPanel.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-
-        overlay.addEventListener('click', () => {
-            adminPanel.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-
-        // ===== RADIO INTERFACE =====
-        const playButton = document.getElementById('playButton');
-        const playIcon = playButton.querySelector('.play-icon svg');
-        const status = document.getElementById('status');
-        const visualizer = document.getElementById('visualizer');
-        const connectionStatus = document.getElementById('connectionStatus');
-        
-        let isPlaying = false;
-        let ws;
-        let audioContext;
-        let sourceNode;
-        
-        const WS_URL = 'ws://10.0.2.15:8765';
-
-        function connectWebSocket() {
-            connectionStatus.textContent = 'Připojování k serveru...';
-            connectionStatus.classList.add('connecting');
-            connectionStatus.classList.remove('connected');
-
-            ws = new WebSocket(WS_URL);
-            ws.binaryType = 'arraybuffer';
-
-            ws.onopen = () => {
-                connectionStatus.textContent = '✓ Připojeno k serveru';
-                connectionStatus.classList.remove('connecting');
-                connectionStatus.classList.add('connected');
-                ws.send(JSON.stringify({ type: 'listener_join' }));
-            };
-
-            ws.onmessage = async (event) => {
-                if (typeof event.data === 'string') {
-                    const msg = JSON.parse(event.data);
-                    if (msg.type === 'stream_status') {
-                        // Handle stream status updates
-                    }
-                } else if (isPlaying && audioContext) {
-                    try {
-                        const audioBuffer = await audioContext.decodeAudioData(event.data.slice(0));
-                        if (sourceNode) {
-                            sourceNode.stop();
-                        }
-                        sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = audioBuffer;
-                        sourceNode.connect(audioContext.destination);
-                        sourceNode.start(0);
-                    } catch (e) {
-                        console.error('Audio decode error:', e);
-                    }
-                }
-            };
-
-            ws.onerror = () => {
-                connectionStatus.textContent = '⚠ Chyba připojení';
-                connectionStatus.classList.remove('connecting', 'connected');
-            };
-
-            ws.onclose = () => {
-                connectionStatus.textContent = 'Odpojeno - pokus o reconnect...';
-                connectionStatus.classList.remove('connecting', 'connected');
-                setTimeout(connectWebSocket, 3000);
-            };
+        // Show appropriate interface
+        if (isAdmin) {
+            radioInterface.classList.add('hidden');
+            adminPanel.classList.remove('hidden');
+            initAdmin();
+        } else {
+            initRadio();
         }
 
-        connectWebSocket();
+        // ===== RADIO INTERFACE =====
+        function initRadio() {
+            const playButton = document.getElementById('playButton');
+            const playIcon = playButton.querySelector('.play-icon svg');
+            const status = document.getElementById('status');
+            const visualizer = document.getElementById('visualizer');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            let isPlaying = false;
+            let bc;
+            let audioContext;
+            let sourceNode;
+            let mediaStream;
 
-        playButton.addEventListener('click', async () => {
-            if (!isPlaying) {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            try {
+                bc = new BroadcastChannel(BROADCAST_CHANNEL);
+                
+                bc.onmessage = async (event) => {
+                    if (event.data.type === 'stream_start') {
+                        connectionStatus.textContent = '🔴 ŽIVÉ vysílání probíhá';
+                        connectionStatus.classList.add('connected');
+                        mediaStream = event.data.stream;
+                        
+                        if (isPlaying && audioContext) {
+                            try {
+                                const source = audioContext.createMediaStreamSource(mediaStream);
+                                source.connect(audioContext.destination);
+                            } catch (e) {
+                                console.error('Audio connection error:', e);
+                            }
+                        }
+                    } else if (event.data.type === 'stream_stop') {
+                        connectionStatus.textContent = 'Připraveno';
+                        connectionStatus.classList.remove('connected');
+                        mediaStream = null;
+                        if (isPlaying) {
+                            playButton.click();
+                        }
+                    } else if (event.data.type === 'listener_joined') {
+                        // Notify broadcaster
+                    } else if (event.data.type === 'listener_left') {
+                        // Notify broadcaster
+                    }
+                };
+            } catch (e) {
+                connectionStatus.textContent = 'BroadcastChannel není podporován';
+            }
+
+            playButton.addEventListener('click', async () => {
+                if (!isPlaying) {
+                    if (!audioContext) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
+                    playButton.classList.add('playing');
+                    status.textContent = 'Nyní hraje - HITRADIO AUTOBUS';
+                    status.classList.add('live');
+                    visualizer.classList.add('active');
+                    isPlaying = true;
+                    
+                    if (bc) {
+                        bc.postMessage({ type: 'listener_joined' });
+                    }
+
+                    // Connect existing stream if available
+                    if (mediaStream && audioContext) {
+                        try {
+                            const source = audioContext.createMediaStreamSource(mediaStream);
+                            source.connect(audioContext.destination);
+                        } catch (e) {
+                            console.error('Audio connection error:', e);
+                        }
+                    }
+                } else {
+                    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                    playButton.classList.remove('playing');
+                    status.textContent = 'Klikni pro poslech';
+                    status.classList.remove('live');
+                    visualizer.classList.remove('active');
+                    isPlaying = false;
+                    
+                    if (bc) {
+                        bc.postMessage({ type: 'listener_left' });
+                    }
                 }
+            });
+
+            if (bc) {
+                bc.postMessage({ type: 'request_status' });
+            }
+        }
+
+        // ===== ADMIN INTERFACE =====
+        function initAdmin() {
+            const pinInput = document.getElementById('pinInput');
+            const submitPin = document.getElementById('submitPin');
+            const pinEntry = document.getElementById('pinEntry');
+            const controlPanel = document.getElementById('controlPanel');
+            const pinError = document.getElementById('pinError');
+            const micButton = document.getElementById('micButton');
+            const broadcastStatus = document.getElementById('broadcastStatus');
+            const volumeControl = document.getElementById('volumeControl');
+            const volumeValue = document.getElementById('volumeValue');
+            const microphoneSelect = document.getElementById('microphoneSelect');
+            const listenersCount = document.getElementById('listenersCount');
+
+            let isBroadcasting = false;
+            let micStream;
+            let audioContext;
+            let gainNode;
+            let bc;
+            let listeners = 0;
+
+            try {
+                bc = new BroadcastChannel(BROADCAST_CHANNEL);
                 
-                playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
-                playButton.classList.add('playing');
-                status.textContent = 'Nyní hraje - HITRADIO AUTOBUS';
-                status.classList.add('live');
-                visualizer.classList.add('active');
-                isPlaying = true;
-                
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'start_listening' }));
-                }
-            } else {
-                if (sourceNode) {
-                    sourceNode.stop();
-                }
-                
-                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                playButton.classList.remove('playing');
-                status.textContent = 'Klikni pro poslech';
-                status.classList.remove('live');
-                visualizer.classList.remove('active');
-                isPlaying = false;
-                
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'stop_listening' }));
+                bc.onmessage = (event) => {
+                    if (event.data.type === 'listener_joined') {
+                        listeners++;
+                        updateListeners();
+                    } else if (event.data.type === 'listener_left') {
+                        listeners = Math.max(0, listeners - 1);
+                        updateListeners();
+                    } else if (event.data.type === 'request_status') {
+                        if (isBroadcasting && micStream) {
+                            bc.postMessage({ type: 'stream_start', stream: micStream });
+                        }
+                    }
+                };
+            } catch (e) {
+                console.error('BroadcastChannel not supported');
+            }
+
+            function updateListeners() {
+                listenersCount.textContent = `👥 ${listeners} posluchač${listeners === 1 ? '' : listeners < 5 ? 'i' : 'ů'}`;
+            }
+
+            // Load microphones
+            async function loadMicrophones() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const microphones = devices.filter(device => device.kind === 'audioinput');
+                    
+                    microphoneSelect.innerHTML = '';
+                    
+                    if (microphones.length === 0) {
+                        microphoneSelect.innerHTML = '<option value="">Žádné mikrofony nenalezeny</option>';
+                        return;
+                    }
+                    
+                    microphones.forEach((mic, index) => {
+                        const option = document.createElement('option');
+                        option.value = mic.deviceId;
+                        option.textContent = mic.label || `Mikrofon ${index + 1}`;
+                        microphoneSelect.appendChild(option);
+                    });
+                } catch (err) {
+                    microphoneSelect.innerHTML = '<option value="">Chyba načítání mikrofonů</option>';
+                    console.error('Error loading microphones:', err);
                 }
             }
-        });
 
-        // ===== BROADCASTER INTERFACE =====
-        const micButton = document.getElementById('micButton');
-        const broadcastStatus = document.getElementById('broadcastStatus');
-        const volumeControl = document.getElementById('volumeControl');
-        const volumeValue = document.getElementById('volumeValue');
-        const serverUrl = document.getElementById('serverUrl');
-        const listenersCount = document.getElementById('listenersCount');
+            submitPin.addEventListener('click', async () => {
+                if (pinInput.value === CORRECT_PIN) {
+                    pinEntry.classList.add('hidden');
+                    controlPanel.classList.remove('hidden');
+                    pinError.classList.add('hidden');
+                    await loadMicrophones();
+                } else {
+                    pinError.classList.remove('hidden');
+                    pinInput.value = '';
+                    pinInput.focus();
+                }
+            });
 
-        let isBroadcasting = false;
-        let micStream;
-        let broadcastContext;
-        let broadcastWs;
+            pinInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    submitPin.click();
+                }
+            });
 
-        volumeControl.addEventListener('input', (e) => {
-            volumeValue.textContent = e.target.value + '%';
-        });
+            volumeControl.addEventListener('input', (e) => {
+                volumeValue.textContent = e.target.value + '%';
+                if (gainNode) {
+                    gainNode.gain.value = e.target.value / 100;
+                }
+            });
 
-        micButton.addEventListener('click', async () => {
-            if (!isBroadcasting) {
-                try {
-                    broadcastWs = new WebSocket(serverUrl.value);
-                    
-                    broadcastWs.onopen = async () => {
-                        broadcastWs.send(JSON.stringify({ type: 'broadcaster_join' }));
+            micButton.addEventListener('click', async () => {
+                if (!isBroadcasting) {
+                    try {
+                        const selectedMicId = microphoneSelect.value;
+                        if (!selectedMicId) {
+                            broadcastStatus.textContent = '❌ Vyberte mikrofon';
+                            return;
+                        }
+
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         
-                        broadcastContext = new (window.AudioContext || window.webkitAudioContext)();
-                        micStream = await navigator.mediaDevices.getUserMedia({
+                        const constraints = {
                             audio: {
+                                deviceId: selectedMicId ? { exact: selectedMicId } : undefined,
                                 echoCancellation: true,
                                 noiseSuppression: true,
                                 autoGainControl: true
                             }
-                        });
-                        
-                        const source = broadcastContext.createMediaStreamSource(micStream);
-                        const processor = broadcastContext.createScriptProcessor(4096, 1, 1);
-                        
-                        processor.onaudioprocess = (e) => {
-                            const inputData = e.inputBuffer.getChannelData(0);
-                            const volume = volumeControl.value / 100;
-                            const outputData = new Float32Array(inputData.length);
-                            
-                            for (let i = 0; i < inputData.length; i++) {
-                                outputData[i] = inputData[i] * volume;
-                            }
-                            
-                            if (broadcastWs && broadcastWs.readyState === WebSocket.OPEN) {
-                                broadcastWs.send(outputData.buffer);
-                            }
                         };
+
+                        micStream = await navigator.mediaDevices.getUserMedia(constraints);
                         
-                        source.connect(processor);
-                        processor.connect(broadcastContext.destination);
+                        const source = audioContext.createMediaStreamSource(micStream);
+                        gainNode = audioContext.createGain();
+                        gainNode.gain.value = volumeControl.value / 100;
+                        
+                        const destination = audioContext.createMediaStreamDestination();
+                        
+                        source.connect(gainNode);
+                        gainNode.connect(destination);
+                        
+                        if (bc) {
+                            bc.postMessage({ type: 'stream_start', stream: destination.stream });
+                        }
                         
                         micButton.classList.add('active');
                         micButton.textContent = '🎤 Zastavit vysílání';
                         broadcastStatus.textContent = '🔴 Vysílání ŽIVĚ';
                         broadcastStatus.classList.add('live');
                         isBroadcasting = true;
-                    };
-
-                    broadcastWs.onmessage = (event) => {
-                        const msg = JSON.parse(event.data);
-                        if (msg.type === 'listener_count') {
-                            listenersCount.textContent = `👥 ${msg.count} posluchač${msg.count === 1 ? '' : 'ů'}`;
-                        }
-                    };
-
-                    broadcastWs.onerror = () => {
-                        broadcastStatus.textContent = '❌ Chyba připojení k serveru';
-                    };
-
-                } catch (err) {
-                    broadcastStatus.textContent = '❌ Chyba: ' + err.message;
-                    console.error(err);
+                    } catch (err) {
+                        broadcastStatus.textContent = '❌ Chyba: ' + err.message;
+                        broadcastStatus.classList.remove('live');
+                        console.error(err);
+                    }
+                } else {
+                    if (micStream) {
+                        micStream.getTracks().forEach(track => track.stop());
+                    }
+                    if (audioContext) {
+                        audioContext.close();
+                    }
+                    
+                    if (bc) {
+                        bc.postMessage({ type: 'stream_stop' });
+                    }
+                    
+                    micButton.classList.remove('active');
+                    micButton.textContent = '🎤 Spustit vysílání';
+                    broadcastStatus.textContent = 'Připraveno k vysílání';
+                    broadcastStatus.classList.remove('live');
+                    isBroadcasting = false;
                 }
-            } else {
-                if (micStream) {
-                    micStream.getTracks().forEach(track => track.stop());
-                }
-                if (broadcastContext) {
-                    broadcastContext.close();
-                }
-                if (broadcastWs) {
-                    broadcastWs.close();
-                }
-                
-                micButton.classList.remove('active');
-                micButton.textContent = '🎤 Spustit vysílání';
-                broadcastStatus.textContent = 'Připraveno k vysílání';
-                broadcastStatus.classList.remove('live');
-                isBroadcasting = false;
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>
