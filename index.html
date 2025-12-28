@@ -685,6 +685,14 @@
             // Load microphones
             async function loadMicrophones() {
                 try {
+                    // First request permission to access microphone so we can get device labels
+                    await navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(stream => {
+                            // Stop the stream immediately, we just needed permission
+                            stream.getTracks().forEach(track => track.stop());
+                        });
+                    
+                    // Now enumerate devices with proper labels
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     const microphones = devices.filter(device => device.kind === 'audioinput');
                     
