@@ -535,6 +535,7 @@
             let audioContext;
             let audioQueue = [];
             let isProcessing = false;
+            let nextPlayTime = 0;
 
             try {
                 bc = new BroadcastChannel(BROADCAST_CHANNEL);
@@ -578,16 +579,29 @@
                         const audioBuffer = audioContext.createBuffer(1, float32Array.length, data.sampleRate || audioContext.sampleRate);
                         audioBuffer.copyToChannel(float32Array, 0);
                         
-                        // Play the audio
+                        // Play the audio with precise timing
                         const source = audioContext.createBufferSource();
                         source.buffer = audioBuffer;
                         source.connect(audioContext.destination);
-                        source.start(0);
                         
-                        // Process next chunk after this one finishes
+                        // Schedule playback to prevent gaps and overlaps
+                        const currentTime = audioContext.currentTime;
+                        if (nextPlayTime < currentTime) {
+                            nextPlayTime = currentTime;
+                        }
+                        
+                        source.start(nextPlayTime);
+                        nextPlayTime += audioBuffer.duration;
+                        
+                        // Process next chunk immediately
                         source.onended = () => {
                             processAudioQueue();
                         };
+                        
+                        // Also process next chunk if there's a queue backup
+                        if (audioQueue.length > 0) {
+                            setTimeout(() => processAudioQueue(), 0);
+                        }
                     } catch (e) {
                         console.error('Audio processing error:', e);
                         processAudioQueue();
@@ -602,6 +616,13 @@
                     if (!audioContext) {
                         audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     }
+                    
+                    // Resume audio context if suspended (required for mobile)
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    
+                    nextPlayTime = audioContext.currentTime;
                     
                     playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
                     playButton.classList.add('playing');
@@ -621,6 +642,7 @@
                     visualizer.classList.remove('active');
                     isPlaying = false;
                     audioQueue = [];
+                    nextPlayTime = 0;
                     
                     if (bc) {
                         bc.postMessage({ type: 'listener_left' });
@@ -757,7 +779,9 @@
                                 deviceId: selectedMicId ? { exact: selectedMicId } : undefined,
                                 echoCancellation: true,
                                 noiseSuppression: true,
-                                autoGainControl: true
+                                autoGainControl: false,
+                                sampleRate: 48000,
+                                channelCount: 1
                             }
                         };
 
@@ -767,17 +791,28 @@
                         gainNode = audioContext.createGain();
                         gainNode.gain.value = volumeControl.value / 100;
                         
-                        // Use ScriptProcessor to capture audio data
-                        processor = audioContext.createScriptProcessor(4096, 1, 1);
+                        // Use ScriptProcessor to capture audio data (better mobile compatibility)
+                        const bufferSize = 2048; // Smaller buffer for lower latency
+                        processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
                         
                         processor.onaudioprocess = (e) => {
                             if (!isBroadcasting || !bc) return;
                             
-                            // Get audio data
+                            // Get audio data from gain node output instead of input
                             const inputData = e.inputBuffer.getChannelData(0);
                             
+                            // Apply simple audio processing for cleaner sound
+                            const processedData = new Float32Array(inputData.length);
+                            for (let i = 0; i < inputData.length; i++) {
+                                // Apply soft clipping to prevent distortion
+                                let sample = inputData[i] * (gainNode.gain.value || 1);
+                                if (sample > 0.95) sample = 0.95;
+                                if (sample < -0.95) sample = -0.95;
+                                processedData[i] = sample;
+                            }
+                            
                             // Convert Float32Array to regular array for transmission
-                            const audioArray = Array.from(inputData);
+                            const audioArray = Array.from(processedData);
                             
                             bc.postMessage({ 
                                 type: 'audio_chunk', 
