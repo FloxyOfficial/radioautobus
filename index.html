@@ -503,8 +503,6 @@
         </div>
     </div>
 
-    <audio id="audioPlayer" style="display: none;"></audio>
-
     <script>
         const BROADCAST_CHANNEL = 'hitradio_autobus_stream';
         const CORRECT_PIN = '1481';
@@ -531,13 +529,12 @@
             const status = document.getElementById('status');
             const visualizer = document.getElementById('visualizer');
             const connectionStatus = document.getElementById('connectionStatus');
-            const audioPlayer = document.getElementById('audioPlayer');
             
             let isPlaying = false;
             let bc;
             let audioContext;
-            let sourceNode;
-            let mediaStream;
+            let audioQueue = [];
+            let isProcessing = false;
 
             try {
                 bc = new BroadcastChannel(BROADCAST_CHANNEL);
@@ -546,29 +543,49 @@
                     if (event.data.type === 'stream_start') {
                         connectionStatus.textContent = '🔴 ŽIVÉ vysílání probíhá';
                         connectionStatus.classList.add('connected');
-                        mediaStream = event.data.stream;
-                        
-                        if (isPlaying && audioContext) {
-                            try {
-                                const source = audioContext.createMediaStreamSource(mediaStream);
-                                source.connect(audioContext.destination);
-                            } catch (e) {
-                                console.error('Audio connection error:', e);
-                            }
-                        }
                     } else if (event.data.type === 'stream_stop') {
                         connectionStatus.textContent = 'Připraveno';
                         connectionStatus.classList.remove('connected');
-                        mediaStream = null;
+                        audioQueue = [];
                         if (isPlaying) {
                             playButton.click();
                         }
-                    } else if (event.data.type === 'listener_joined') {
-                        // Notify broadcaster
-                    } else if (event.data.type === 'listener_left') {
-                        // Notify broadcaster
+                    } else if (event.data.type === 'audio_chunk') {
+                        // Receive audio data
+                        if (isPlaying && audioContext) {
+                            audioQueue.push(event.data.audioData);
+                            if (!isProcessing) {
+                                processAudioQueue();
+                            }
+                        }
                     }
                 };
+
+                async function processAudioQueue() {
+                    if (audioQueue.length === 0 || !isPlaying) {
+                        isProcessing = false;
+                        return;
+                    }
+
+                    isProcessing = true;
+                    const audioData = audioQueue.shift();
+
+                    try {
+                        const audioBuffer = await audioContext.decodeAudioData(audioData);
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
+                        source.start(0);
+                        
+                        // Wait for the audio to finish playing
+                        source.onended = () => {
+                            processAudioQueue();
+                        };
+                    } catch (e) {
+                        console.error('Audio decode error:', e);
+                        processAudioQueue();
+                    }
+                }
             } catch (e) {
                 connectionStatus.textContent = 'BroadcastChannel není podporován';
             }
@@ -589,16 +606,6 @@
                     if (bc) {
                         bc.postMessage({ type: 'listener_joined' });
                     }
-
-                    // Connect existing stream if available
-                    if (mediaStream && audioContext) {
-                        try {
-                            const source = audioContext.createMediaStreamSource(mediaStream);
-                            source.connect(audioContext.destination);
-                        } catch (e) {
-                            console.error('Audio connection error:', e);
-                        }
-                    }
                 } else {
                     playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
                     playButton.classList.remove('playing');
@@ -606,6 +613,7 @@
                     status.classList.remove('live');
                     visualizer.classList.remove('active');
                     isPlaying = false;
+                    audioQueue = [];
                     
                     if (bc) {
                         bc.postMessage({ type: 'listener_left' });
@@ -636,6 +644,7 @@
             let micStream;
             let audioContext;
             let gainNode;
+            let processor;
             let bc;
             let listeners = 0;
 
@@ -646,12 +655,15 @@
                     if (event.data.type === 'listener_joined') {
                         listeners++;
                         updateListeners();
+                        if (isBroadcasting) {
+                            bc.postMessage({ type: 'stream_start' });
+                        }
                     } else if (event.data.type === 'listener_left') {
                         listeners = Math.max(0, listeners - 1);
                         updateListeners();
                     } else if (event.data.type === 'request_status') {
-                        if (isBroadcasting && micStream) {
-                            bc.postMessage({ type: 'stream_start', stream: micStream });
+                        if (isBroadcasting) {
+                            bc.postMessage({ type: 'stream_start' });
                         }
                     }
                 };
@@ -740,13 +752,37 @@
                         gainNode = audioContext.createGain();
                         gainNode.gain.value = volumeControl.value / 100;
                         
-                        const destination = audioContext.createMediaStreamDestination();
+                        // Use ScriptProcessor to capture audio data
+                        processor = audioContext.createScriptProcessor(4096, 1, 1);
+                        
+                        processor.onaudioprocess = (e) => {
+                            if (!isBroadcasting || !bc) return;
+                            
+                            // Get audio data
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            
+                            // Create an AudioBuffer to encode
+                            const buffer = audioContext.createBuffer(1, inputData.length, audioContext.sampleRate);
+                            buffer.copyToChannel(inputData, 0);
+                            
+                            // Convert to array and send
+                            const audioData = inputData.slice(0);
+                            
+                            // Encode as WAV-like format for transmission
+                            const arrayBuffer = audioData.buffer.slice(0);
+                            
+                            bc.postMessage({ 
+                                type: 'audio_chunk', 
+                                audioData: arrayBuffer
+                            });
+                        };
                         
                         source.connect(gainNode);
-                        gainNode.connect(destination);
+                        gainNode.connect(processor);
+                        processor.connect(audioContext.destination);
                         
                         if (bc) {
-                            bc.postMessage({ type: 'stream_start', stream: destination.stream });
+                            bc.postMessage({ type: 'stream_start' });
                         }
                         
                         micButton.classList.add('active');
@@ -760,6 +796,9 @@
                         console.error(err);
                     }
                 } else {
+                    if (processor) {
+                        processor.disconnect();
+                    }
                     if (micStream) {
                         micStream.getTracks().forEach(track => track.stop());
                     }
