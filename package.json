@@ -1,0 +1,16 @@
+{
+  "name": "hitradio-autobus",
+  "version": "1.0.0",
+  "description": "Live radio streaming application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1"
+  },
+  "keywords": ["radio", "streaming", "live"],
+  "author": "Your Name",
+  "license": "MIT"
+}
