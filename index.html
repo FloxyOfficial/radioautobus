@@ -78,6 +78,13 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Wait for Socket.IO to load before loading app.js
+        if (typeof io === 'undefined') {
+            console.error('Socket.IO failed to load. Make sure the server is running.');
+            document.body.innerHTML = '<div style="color: white; text-align: center; padding: 50px; font-family: Arial;"><h1>❌ Server Error</h1><p>Cannot connect to server. Make sure you started the server with: npm start</p></div>';
+        }
+    </script>
     <script src="app.js"></script>
 </body>
 </html>
