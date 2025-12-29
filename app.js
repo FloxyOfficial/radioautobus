@@ -54,10 +54,7 @@ function initRadio() {
     let isPlaying = false;
     let audioContext;
     let audioQueue = [];
-    let isProcessing = false;
     let nextPlayTime = 0;
-    const MAX_QUEUE_SIZE = 3; // Keep queue tight to reduce latency
-    let sourceNodes = []; // Track active sources
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -81,22 +78,16 @@ function initRadio() {
 
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
-            // Prevent queue from getting too large (causes lag)
-            if (audioQueue.length >= MAX_QUEUE_SIZE) {
-                console.warn('Audio queue overflow, dropping old chunks');
-                audioQueue.shift(); // Drop oldest chunk
-            }
             audioQueue.push(data);
             processAudioQueue();
         }
     });
 
-    async function processAudioQueue() {
-        if (audioQueue.length === 0 || !isPlaying || isProcessing) {
+    function processAudioQueue() {
+        if (audioQueue.length === 0 || !isPlaying) {
             return;
         }
 
-        isProcessing = true;
         const data = audioQueue.shift();
 
         try {
@@ -125,36 +116,24 @@ function initRadio() {
             
             const currentTime = audioContext.currentTime;
             
-            // Better timing management
+            // Initialize or reset timing
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                // First chunk or we're behind - start immediately with small buffer
-                nextPlayTime = currentTime + 0.05;
-            }
-            
-            // Don't let buffer get too far ahead
-            if (nextPlayTime > currentTime + 0.5) {
-                console.warn('Audio timing adjusted - reducing buffer');
-                nextPlayTime = currentTime + 0.1;
+                nextPlayTime = currentTime;
             }
             
             source.start(nextPlayTime);
             nextPlayTime += audioBuffer.duration;
             
-            sourceNodes.push(source);
-            
-            source.onended = () => {
-                // Remove this source from tracking
-                const index = sourceNodes.indexOf(source);
-                if (index > -1) sourceNodes.splice(index, 1);
-                
-                isProcessing = false;
-                processAudioQueue();
-            };
+            // Continue processing queue
+            if (audioQueue.length > 0) {
+                setTimeout(() => processAudioQueue(), 0);
+            }
             
         } catch (e) {
             console.error('Audio processing error:', e);
-            isProcessing = false;
-            processAudioQueue();
+            if (audioQueue.length > 0) {
+                setTimeout(() => processAudioQueue(), 0);
+            }
         }
     }
 
@@ -170,7 +149,6 @@ function initRadio() {
             
             nextPlayTime = 0;
             audioQueue = [];
-            sourceNodes = [];
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -189,16 +167,6 @@ function initRadio() {
             isPlaying = false;
             audioQueue = [];
             nextPlayTime = 0;
-            
-            // Stop all active sources
-            sourceNodes.forEach(source => {
-                try {
-                    source.stop();
-                } catch (e) {
-                    // Source may have already ended
-                }
-            });
-            sourceNodes = [];
             
             socket.emit('listener_left');
         }
@@ -312,17 +280,16 @@ function initAdmin() {
                     sampleRate: 48000
                 });
                 
-                // Check if audioMode exists, default to voice if not
                 const isMusicMode = audioMode && audioMode.value === 'music';
                 
                 const constraints = {
                     audio: {
                         deviceId: selectedMicId ? { exact: selectedMicId } : undefined,
-                        echoCancellation: !isMusicMode,  // OFF for music, ON for voice
-                        noiseSuppression: !isMusicMode,   // OFF for music, ON for voice
+                        echoCancellation: !isMusicMode,
+                        noiseSuppression: !isMusicMode,
                         autoGainControl: false,
                         sampleRate: 48000,
-                        channelCount: isMusicMode ? 2 : 1  // Stereo for music, mono for voice
+                        channelCount: isMusicMode ? 2 : 1
                     }
                 };
 
@@ -335,21 +302,12 @@ function initAdmin() {
                 monitorGain = audioContext.createGain();
                 monitorGain.gain.value = monitorControl.value / 100;
                 
-                // Smaller buffer for lower latency
-                const bufferSize = 2048; // Balanced for quality and latency
+                const bufferSize = 4096;
                 const channels = isMusicMode ? 2 : 1;
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
-                let lastSendTime = 0;
-                const minInterval = 20; // Minimum 20ms between sends
-                
                 processor.onaudioprocess = (e) => {
                     if (!isBroadcasting) return;
-                    
-                    // Throttle sending to prevent overwhelming the network
-                    const now = Date.now();
-                    if (now - lastSendTime < minInterval) return;
-                    lastSendTime = now;
                     
                     const processedChannels = [];
                     
@@ -359,11 +317,8 @@ function initAdmin() {
                         
                         for (let i = 0; i < inputData.length; i++) {
                             let sample = inputData[i] * (gainNode.gain.value || 1);
-                            // Soft clipping to reduce distortion
-                            if (sample > 0.95) sample = 0.95 + (sample - 0.95) * 0.2;
-                            if (sample < -0.95) sample = -0.95 + (sample + 0.95) * 0.2;
-                            if (sample > 1) sample = 1;
-                            if (sample < -1) sample = -1;
+                            // Simple clipping
+                            sample = Math.max(-1, Math.min(1, sample));
                             processedData[i] = sample;
                         }
                         
