@@ -273,17 +273,7 @@ function initRadio() {
     let nextPlayTime = 0;
     let isScheduling = false;
     let listenerGainNode;
-    let scheduledSources = [];
     let wakeLock = null;
-    
-    // Register service worker for background audio support
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('Service Worker registered for background support');
-        }).catch(err => {
-            console.log('Service Worker registration failed:', err);
-        });
-    }
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -300,6 +290,27 @@ function initRadio() {
         }
     });
 
+    // Handle reconnection
+    socket.on('connect', () => {
+        console.log('Connected to server');
+        if (isPlaying) {
+            socket.emit('listener_joined');
+        }
+    });
+    
+    socket.on('disconnect', (reason) => {
+        console.log('Disconnected:', reason);
+        connectionStatus.textContent = '⚠️ ' + t('cannotConnect');
+        connectionStatus.classList.remove('connected');
+    });
+    
+    socket.on('reconnect', () => {
+        console.log('Reconnected!');
+        if (isPlaying) {
+            socket.emit('listener_joined');
+        }
+    });
+
     // Socket event listeners
     socket.on('stream_start', () => {
         console.log('Stream started');
@@ -312,18 +323,6 @@ function initRadio() {
         connectionStatus.textContent = t('ready');
         connectionStatus.classList.remove('connected');
         audioQueue = [];
-        nextPlayTime = 0;
-        hasStartedPlayback = false;
-        scheduledSources.forEach(source => {
-            try {
-                source.stop();
-            } catch (e) {}
-        });
-        scheduledSources = [];
-        if (scheduleInterval) {
-            clearInterval(scheduleInterval);
-            scheduleInterval = null;
-        }
         if (isPlaying) {
             playButton.click();
         }
@@ -425,65 +424,6 @@ function initRadio() {
             audioQueue = [];
             isScheduling = false;
             
-            // Enable Media Session API for background playback on mobile
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: 'HITRADIO AUTOBUS',
-                    artist: 'Live Stream',
-                    album: 'Radio',
-                    artwork: [
-                        { src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="%23ef4444"/%3E%3C/svg%3E', sizes: '96x96', type: 'image/svg+xml' }
-                    ]
-                });
-                
-                navigator.mediaSession.setActionHandler('play', () => {
-                    if (audioContext.state === 'suspended') {
-                        audioContext.resume();
-                    }
-                });
-                
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    playButton.click();
-                });
-                
-                navigator.mediaSession.playbackState = 'playing';
-            }
-            
-            // Request wake lock to keep audio playing when screen is off
-            if ('wakeLock' in navigator) {
-                try {
-                    navigator.wakeLock.request('screen').then(lock => {
-                        wakeLock = lock;
-                        console.log('Wake lock acquired');
-                        
-                        // Re-acquire wake lock if page becomes visible again
-                        wakeLock.addEventListener('release', () => {
-                            console.log('Wake lock released');
-                        });
-                    }).catch(err => {
-                        console.log('Wake lock error:', err);
-                    });
-                } catch (err) {
-                    console.log('Wake lock not supported:', err);
-                }
-            }
-            
-            // Keep audio playing when page visibility changes (mobile background)
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden && isPlaying && audioContext) {
-                    // Page hidden but keep playing
-                    console.log('Page hidden - keeping audio alive');
-                    if (audioContext.state === 'running') {
-                        // Audio context stays active
-                    }
-                } else if (!document.hidden && isPlaying && audioContext) {
-                    // Page visible again
-                    console.log('Page visible - audio still playing');
-                    if (audioContext.state === 'suspended') {
-                        audioContext.resume();
-                    }
-                }
-            });
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -506,17 +446,6 @@ function initRadio() {
             nextPlayTime = 0;
             isScheduling = false;
             
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.playbackState = 'paused';
-            }
-            
-            // Release wake lock
-            if (wakeLock) {
-                wakeLock.release().then(() => {
-                    wakeLock = null;
-                    console.log('Wake lock released');
-                });
-            }
             
             if (socket.connected) {
                 socket.emit('listener_left');
@@ -559,26 +488,28 @@ function initAdmin() {
 
     socket.emit('broadcaster');
     
-    // Keep connection alive
-    setInterval(() => {
-        if (socket.connected && isBroadcasting) {
-            socket.emit('ping');
-        }
-    }, 10000);
-    
-    // Handle reconnection
-    socket.on('reconnect', () => {
-        console.log('Reconnected to server');
+    // Handle broadcaster reconnection
+    socket.on('connect', () => {
+        console.log('Broadcaster connected to server');
         socket.emit('broadcaster');
         if (isBroadcasting) {
             socket.emit('stream_start');
         }
     });
     
-    socket.on('disconnect', () => {
-        console.log('Disconnected from server');
+    socket.on('disconnect', (reason) => {
+        console.log('Broadcaster disconnected:', reason);
         if (isBroadcasting) {
-            broadcastStatus.textContent = '⚠️ Connection lost - attempting to reconnect...';
+            broadcastStatus.textContent = '⚠️ Connection lost - reconnecting...';
+        }
+    });
+    
+    socket.on('reconnect', () => {
+        console.log('Broadcaster reconnected!');
+        socket.emit('broadcaster');
+        if (isBroadcasting) {
+            socket.emit('stream_start');
+            broadcastStatus.textContent = t('broadcasting');
         }
     });
 
@@ -855,35 +786,28 @@ function initAdmin() {
                 processor.onaudioprocess = (e) => {
                     if (!isBroadcasting) return;
                     
-                    try {
-                        const processedChannels = [];
+                    const processedChannels = [];
+                    
+                    for (let channel = 0; channel < channels; channel++) {
+                        const inputData = e.inputBuffer.getChannelData(channel);
+                        const processedData = new Float32Array(inputData.length);
                         
-                        for (let channel = 0; channel < channels; channel++) {
-                            const inputData = e.inputBuffer.getChannelData(channel);
-                            const processedData = new Float32Array(inputData.length);
-                            
-                            for (let i = 0; i < inputData.length; i++) {
-                                let sample = inputData[i] * (currentGainNode.gain.value || 1);
-                                sample = Math.max(-1, Math.min(1, sample));
-                                processedData[i] = sample;
-                            }
-                            
-                            processedChannels.push(Array.from(processedData));
+                        for (let i = 0; i < inputData.length; i++) {
+                            let sample = inputData[i] * (currentGainNode.gain.value || 1);
+                            sample = Math.max(-1, Math.min(1, sample));
+                            processedData[i] = sample;
                         }
                         
-                        if (socket.connected) {
-                            socket.emit('audio_chunk', { 
-                                audioData: processedChannels,
-                                sampleRate: audioContext.sampleRate,
-                                channels: channels
-                            });
-                        }
-                    } catch (err) {
-                        console.error('Audio processing error:', err);
+                        processedChannels.push(Array.from(processedData));
                     }
+                    
+                    socket.emit('audio_chunk', { 
+                        audioData: processedChannels,
+                        sampleRate: audioContext.sampleRate,
+                        channels: channels
+                    });
                 };
                 
-                console.log('Connecting audio pipeline...');
                 mediaStreamSource.connect(currentGainNode);
                 currentGainNode.connect(processor);
                 processor.connect(audioContext.destination);
@@ -892,22 +816,7 @@ function initAdmin() {
                 monitorSource.connect(monitorGain);
                 monitorGain.connect(audioContext.destination);
                 
-                // Keep audio context alive
-                const keepAlive = setInterval(() => {
-                    if (audioContext.state === 'suspended') {
-                        audioContext.resume().then(() => {
-                            console.log('Audio context resumed');
-                        });
-                    }
-                    if (!isBroadcasting) {
-                        clearInterval(keepAlive);
-                    }
-                }, 5000);
-                
-                console.log('Emitting stream_start...');
-                if (socket.connected) {
-                    socket.emit('stream_start');
-                }
+                socket.emit('stream_start');
                 
                 micButton.classList.add('active');
                 micButton.textContent = t('stopBroadcast');
