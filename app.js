@@ -55,6 +55,7 @@ function initRadio() {
     let audioContext;
     let audioQueue = [];
     let nextPlayTime = 0;
+    let scheduledUntil = 0;
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -84,6 +85,14 @@ function initRadio() {
     });
 
     function processAudioQueue() {
+        const currentTime = audioContext.currentTime;
+        
+        // Initialize scheduling time
+        if (scheduledUntil < currentTime) {
+            scheduledUntil = currentTime + 0.1; // Small initial buffer
+        }
+        
+        // Process all available chunks
         while (audioQueue.length > 0 && isPlaying) {
             const data = audioQueue.shift();
 
@@ -111,15 +120,9 @@ function initRadio() {
                 source.buffer = audioBuffer;
                 source.connect(audioContext.destination);
                 
-                const currentTime = audioContext.currentTime;
-                
-                // Initialize timing
-                if (nextPlayTime < currentTime) {
-                    nextPlayTime = currentTime;
-                }
-                
-                source.start(nextPlayTime);
-                nextPlayTime += audioBuffer.duration;
+                // Schedule at the end of previously scheduled audio
+                source.start(scheduledUntil);
+                scheduledUntil += audioBuffer.duration;
                 
             } catch (e) {
                 console.error('Audio processing error:', e);
@@ -138,6 +141,7 @@ function initRadio() {
             }
             
             nextPlayTime = 0;
+            scheduledUntil = 0;
             audioQueue = [];
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
@@ -157,6 +161,7 @@ function initRadio() {
             isPlaying = false;
             audioQueue = [];
             nextPlayTime = 0;
+            scheduledUntil = 0;
             
             socket.emit('listener_left');
         }
