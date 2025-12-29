@@ -9,7 +9,9 @@ const io = socketIo(server, {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  maxHttpBufferSize: 1e8
+  maxHttpBufferSize: 1e8,
+  pingTimeout: 120000,
+  pingInterval: 30000
 });
 
 // Serve static files (HTML, CSS, JS)
