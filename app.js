@@ -55,7 +55,6 @@ function initRadio() {
     let audioContext;
     let audioQueue = [];
     let nextPlayTime = 0;
-    let isProcessingQueue = false;
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -80,69 +79,50 @@ function initRadio() {
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
             audioQueue.push(data);
-            
-            // Keep a small buffer to prevent gaps
-            if (!isProcessingQueue || audioQueue.length > 1) {
-                processAudioQueue();
-            }
+            processAudioQueue();
         }
     });
 
     function processAudioQueue() {
-        if (audioQueue.length === 0 || !isPlaying || isProcessingQueue) {
-            return;
-        }
+        while (audioQueue.length > 0 && isPlaying) {
+            const data = audioQueue.shift();
 
-        isProcessingQueue = true;
-        const data = audioQueue.shift();
-
-        try {
-            const audioData = data.audioData;
-            
-            // Handle both mono and stereo
-            const channelData = Array.isArray(audioData[0]) ? audioData : [audioData];
-            const numChannels = channelData.length;
-            const bufferLength = channelData[0].length;
-            
-            const audioBuffer = audioContext.createBuffer(
-                numChannels, 
-                bufferLength, 
-                data.sampleRate || audioContext.sampleRate
-            );
-            
-            // Copy all channels
-            for (let i = 0; i < numChannels; i++) {
-                const float32Array = new Float32Array(channelData[i]);
-                audioBuffer.copyToChannel(float32Array, i);
-            }
-            
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContext.destination);
-            
-            const currentTime = audioContext.currentTime;
-            
-            // Initialize or catch up if we fell behind
-            if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.01; // Small delay to prevent immediate playback issues
-            }
-            
-            source.start(nextPlayTime);
-            nextPlayTime += audioBuffer.duration;
-            
-            source.onended = () => {
-                isProcessingQueue = false;
-                // Immediately process next if available
-                if (audioQueue.length > 0) {
-                    processAudioQueue();
+            try {
+                const audioData = data.audioData;
+                
+                // Handle both mono and stereo
+                const channelData = Array.isArray(audioData[0]) ? audioData : [audioData];
+                const numChannels = channelData.length;
+                const bufferLength = channelData[0].length;
+                
+                const audioBuffer = audioContext.createBuffer(
+                    numChannels, 
+                    bufferLength, 
+                    data.sampleRate || audioContext.sampleRate
+                );
+                
+                // Copy all channels
+                for (let i = 0; i < numChannels; i++) {
+                    const float32Array = new Float32Array(channelData[i]);
+                    audioBuffer.copyToChannel(float32Array, i);
                 }
-            };
-            
-        } catch (e) {
-            console.error('Audio processing error:', e);
-            isProcessingQueue = false;
-            if (audioQueue.length > 0) {
-                setTimeout(() => processAudioQueue(), 10);
+                
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                
+                const currentTime = audioContext.currentTime;
+                
+                // Initialize timing
+                if (nextPlayTime < currentTime) {
+                    nextPlayTime = currentTime;
+                }
+                
+                source.start(nextPlayTime);
+                nextPlayTime += audioBuffer.duration;
+                
+            } catch (e) {
+                console.error('Audio processing error:', e);
             }
         }
     }
