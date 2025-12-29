@@ -251,7 +251,7 @@ function initRadio() {
         isScheduling = true;
         console.log('Starting audio scheduler');
         
-        // Schedule audio continuously
+        // Schedule audio in batches for smoother playback
         const schedule = () => {
             if (!isPlaying) {
                 isScheduling = false;
@@ -260,15 +260,15 @@ function initRadio() {
             
             const currentTime = audioContext.currentTime;
             
-            // Initialize nextPlayTime with larger buffer for stability
-            if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.5; // 500ms initial buffer
+            // Initialize nextPlayTime with buffer ONLY on first run
+            if (nextPlayTime === 0) {
+                nextPlayTime = currentTime + 0.3; // 300ms initial buffer
                 console.log('Initialized playback time:', nextPlayTime);
             }
             
-            // Schedule ALL available chunks at once
+            // Schedule all available chunks
             let scheduledCount = 0;
-            while (audioQueue.length > 0) {
+            while (audioQueue.length > 0 && scheduledCount < 10) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -290,11 +290,15 @@ function initRadio() {
                     const source = audioContext.createBufferSource();
                     source.buffer = audioBuffer;
                     source.connect(audioContext.destination);
+                    
+                    // If we somehow fell behind, catch up but don't reset completely
+                    if (nextPlayTime < currentTime) {
+                        nextPlayTime = currentTime + 0.05;
+                    }
+                    
                     source.start(nextPlayTime);
                     
-                    if (scheduledCount === 0) {
-                        console.log('Scheduled chunk at:', nextPlayTime, 'duration:', audioBuffer.duration);
-                    }
+                    console.log('Scheduled chunk at:', nextPlayTime, 'duration:', audioBuffer.duration);
                     
                     nextPlayTime += audioBuffer.duration;
                     scheduledCount++;
@@ -304,12 +308,8 @@ function initRadio() {
                 }
             }
             
-            if (scheduledCount > 0) {
-                console.log(`Scheduled ${scheduledCount} chunks`);
-            }
-            
-            // Keep scheduler running continuously
-            setTimeout(schedule, 30); // Check every 30ms for new chunks
+            // ALWAYS keep scheduling - don't stop
+            setTimeout(schedule, 50);
         };
         
         schedule();
