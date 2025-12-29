@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <button class="lang-toggle" id="langToggle" onclick="toggleLanguage()">EN</button>
+
     <div class="background-animation">
         <div class="wave"></div>
         <div class="wave"></div>
@@ -52,32 +54,32 @@
             <h3>🎙️ Ovládání vysílání</h3>
             
             <div class="control-group">
-                <label>Režim zvuku</label>
+                <label data-lang="audioMode">Režim zvuku</label>
                 <select id="audioMode">
                     <option value="music">🎵 Hudba (vysoká kvalita)</option>
                     <option value="voice">🎤 Hlas (potlačení šumu)</option>
                 </select>
-                <small style="display: block; margin-top: 8px; color: #666; font-size: 13px;">
+                <small style="display: block; margin-top: 8px; color: #999; font-size: 13px;">
                     💡 Pro hudbu vyberte "Hudba" - vypne filtry
                 </small>
             </div>
             
             <div class="control-group">
-                <label>Vyberte mikrofon</label>
+                <label data-lang="selectMic">Vyberte mikrofon</label>
                 <select id="microphoneSelect">
                     <option value="">Načítání mikrofonů...</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label>Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
+                <label data-lang="micVolume">Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
                 <input type="range" id="volumeControl" min="0" max="100" value="100">
             </div>
 
             <div class="control-group">
-                <label>Hlasitost monitorování (jen pro vás) <span class="volume-value" id="monitorValue">50%</span></label>
+                <label data-lang="monitorVolume">Hlasitost monitorování (jen pro vás) <span class="volume-value" id="monitorValue">50%</span></label>
                 <input type="range" id="monitorControl" min="0" max="100" value="50">
-                <small style="display: block; margin-top: 8px; color: #666; font-size: 13px;">
+                <small style="display: block; margin-top: 8px; color: #999; font-size: 13px;">
                     💡 Toto slyšíte pouze vy. Posluchači slyší "Hlasitost mikrofonu".
                 </small>
             </div>
