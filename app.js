@@ -96,9 +96,25 @@ function initRadio() {
         const data = audioQueue.shift();
 
         try {
-            const float32Array = new Float32Array(data.audioData);
-            const audioBuffer = audioContext.createBuffer(1, float32Array.length, data.sampleRate || audioContext.sampleRate);
-            audioBuffer.copyToChannel(float32Array, 0);
+            const channels = data.channels || 1;
+            const audioData = data.audioData;
+            
+            // Handle both mono and stereo
+            const channelData = Array.isArray(audioData[0]) ? audioData : [audioData];
+            const numChannels = channelData.length;
+            const bufferLength = channelData[0].length;
+            
+            const audioBuffer = audioContext.createBuffer(
+                numChannels, 
+                bufferLength, 
+                data.sampleRate || audioContext.sampleRate
+            );
+            
+            // Copy all channels
+            for (let i = 0; i < numChannels; i++) {
+                const float32Array = new Float32Array(channelData[i]);
+                audioBuffer.copyToChannel(float32Array, i);
+            }
             
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
@@ -174,6 +190,7 @@ function initAdmin() {
     const monitorControl = document.getElementById('monitorControl');
     const monitorValue = document.getElementById('monitorValue');
     const microphoneSelect = document.getElementById('microphoneSelect');
+    const audioMode = document.getElementById('audioMode');
     const listenersCount = document.getElementById('listenersCount');
 
     let isBroadcasting = false;
@@ -264,14 +281,16 @@ function initAdmin() {
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
+                const isMusicMode = audioMode.value === 'music';
+                
                 const constraints = {
                     audio: {
                         deviceId: selectedMicId ? { exact: selectedMicId } : undefined,
-                        echoCancellation: true,
-                        noiseSuppression: true,
+                        echoCancellation: !isMusicMode,  // OFF for music, ON for voice
+                        noiseSuppression: !isMusicMode,   // OFF for music, ON for voice
                         autoGainControl: false,
                         sampleRate: 48000,
-                        channelCount: 1
+                        channelCount: isMusicMode ? 2 : 1  // Stereo for music, mono for voice
                     }
                 };
 
@@ -285,26 +304,33 @@ function initAdmin() {
                 monitorGain.gain.value = monitorControl.value / 100;
                 
                 const bufferSize = 2048;
-                processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+                const channels = isMusicMode ? 2 : 1;
+                processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
                 processor.onaudioprocess = (e) => {
                     if (!isBroadcasting) return;
                     
-                    const inputData = e.inputBuffer.getChannelData(0);
-                    const processedData = new Float32Array(inputData.length);
+                    const processedChannels = [];
                     
-                    for (let i = 0; i < inputData.length; i++) {
-                        let sample = inputData[i] * (gainNode.gain.value || 1);
-                        if (sample > 0.95) sample = 0.95;
-                        if (sample < -0.95) sample = -0.95;
-                        processedData[i] = sample;
+                    for (let channel = 0; channel < channels; channel++) {
+                        const inputData = e.inputBuffer.getChannelData(channel);
+                        const processedData = new Float32Array(inputData.length);
+                        
+                        for (let i = 0; i < inputData.length; i++) {
+                            let sample = inputData[i] * (gainNode.gain.value || 1);
+                            // Less aggressive clipping for music
+                            if (sample > 0.98) sample = 0.98;
+                            if (sample < -0.98) sample = -0.98;
+                            processedData[i] = sample;
+                        }
+                        
+                        processedChannels.push(Array.from(processedData));
                     }
                     
-                    const audioArray = Array.from(processedData);
-                    
                     socket.emit('audio_chunk', { 
-                        audioData: audioArray,
-                        sampleRate: audioContext.sampleRate
+                        audioData: processedChannels,
+                        sampleRate: audioContext.sampleRate,
+                        channels: channels
                     });
                 };
                 
