@@ -489,8 +489,9 @@ function initAdmin() {
                 gainNode.connect(processor);
                 processor.connect(audioContext.destination);
                 
-                // Monitor connection (only local)
-                source.connect(monitorGain);
+                // Monitor connection - connect source directly, not through processor
+                const monitorSource = audioContext.createMediaStreamSource(micStream);
+                monitorSource.connect(monitorGain);
                 monitorGain.connect(audioContext.destination);
                 
                 socket.emit('stream_start');
