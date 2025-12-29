@@ -273,9 +273,11 @@ function initRadio() {
     let nextPlayTime = 0;
     let isScheduling = false;
     let listenerGainNode;
-    let currentSource = null;
-    const MAX_QUEUE_SIZE = 100;
-    const TARGET_BUFFER = 0.3;
+    let scheduledSources = [];
+    const MAX_QUEUE_SIZE = 150;
+    const MIN_BUFFER = 0.1;
+    const MAX_BUFFER = 0.5;
+    let lastScheduleTime = 0;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -305,12 +307,12 @@ function initRadio() {
         connectionStatus.classList.remove('connected');
         audioQueue = [];
         nextPlayTime = 0;
-        if (currentSource) {
+        scheduledSources.forEach(source => {
             try {
-                currentSource.stop();
+                source.stop();
             } catch (e) {}
-            currentSource = null;
-        }
+        });
+        scheduledSources = [];
         if (isPlaying) {
             playButton.click();
         }
@@ -347,13 +349,25 @@ function initRadio() {
             
             const currentTime = audioContext.currentTime;
             
+            // Initialize or recover playback time
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.1;
+                nextPlayTime = currentTime + MIN_BUFFER;
+                console.log('Resetting playback time');
             }
             
             const bufferAhead = nextPlayTime - currentTime;
             
-            while (audioQueue.length > 0 && bufferAhead < TARGET_BUFFER) {
+            // Clean up old sources
+            scheduledSources = scheduledSources.filter(src => {
+                if (src.endTime && src.endTime < currentTime) {
+                    return false;
+                }
+                return true;
+            });
+            
+            // Schedule audio chunks
+            let scheduled = 0;
+            while (audioQueue.length > 0 && bufferAhead < MAX_BUFFER) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -376,23 +390,36 @@ function initRadio() {
                     source.buffer = audioBuffer;
                     source.connect(listenerGainNode);
                     
+                    const startTime = nextPlayTime;
+                    const endTime = startTime + audioBuffer.duration;
+                    source.endTime = endTime;
+                    
                     source.onended = () => {
-                        if (source === currentSource) {
-                            currentSource = null;
+                        const idx = scheduledSources.indexOf(source);
+                        if (idx > -1) {
+                            scheduledSources.splice(idx, 1);
                         }
                     };
                     
-                    source.start(nextPlayTime);
-                    currentSource = source;
+                    source.start(startTime);
+                    scheduledSources.push(source);
                     
-                    nextPlayTime += audioBuffer.duration;
+                    nextPlayTime = endTime;
+                    scheduled++;
                     
                 } catch (e) {
                     console.error('Audio scheduling error:', e);
                 }
             }
             
-            setTimeout(schedule, 30);
+            // Check buffer health
+            const newBufferAhead = nextPlayTime - audioContext.currentTime;
+            if (newBufferAhead < MIN_BUFFER && audioQueue.length === 0) {
+                console.warn('Buffer underrun warning, queue empty');
+            }
+            
+            lastScheduleTime = currentTime;
+            setTimeout(schedule, 20);
         };
         
         schedule();
@@ -416,6 +443,8 @@ function initRadio() {
             nextPlayTime = 0;
             audioQueue = [];
             isScheduling = false;
+            scheduledSources = [];
+            lastScheduleTime = 0;
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -437,6 +466,12 @@ function initRadio() {
             audioQueue = [];
             nextPlayTime = 0;
             isScheduling = false;
+            scheduledSources.forEach(source => {
+                try {
+                    source.stop();
+                } catch (e) {}
+            });
+            scheduledSources = [];
             
             if (socket.connected) {
                 socket.emit('listener_left');
