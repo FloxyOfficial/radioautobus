@@ -277,8 +277,8 @@ function initRadio() {
     const MAX_QUEUE_SIZE = 500;
     const MIN_BUFFER = 0.5;
     const TARGET_BUFFER = 2.5;
-    const INITIAL_BUFFER_SIZE = 80;
-    const MIN_QUEUE_FOR_SCHEDULING = 30;
+    const INITIAL_BUFFER_SIZE = 100;
+    const MIN_QUEUE_FOR_SCHEDULING = 40;
     let hasStartedPlayback = false;
     let scheduleInterval = null;
     let bufferWarningCount = 0;
@@ -355,7 +355,7 @@ function initRadio() {
             // Start playback once we have enough buffer
             if (!hasStartedPlayback && audioQueue.length >= INITIAL_BUFFER_SIZE) {
                 hasStartedPlayback = true;
-                console.log('✓ Starting playback with', audioQueue.length, 'chunks buffered (~' + (audioQueue.length * 0.021).toFixed(1) + 's)');
+                console.log('✓ Starting playback with', audioQueue.length, 'chunks buffered (~' + (audioQueue.length * 0.0107).toFixed(1) + 's)');
                 scheduleAudio();
             }
             
@@ -737,7 +737,7 @@ function initAdmin() {
             monitorGain = audioContext.createGain();
             monitorGain.gain.value = monitorControl.value / 100;
             
-            const bufferSize = 1024;
+            const bufferSize = 512;
             const channels = isMusicMode ? 2 : 1;
             processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
             
@@ -837,9 +837,12 @@ function initAdmin() {
                 monitorGain = audioContext.createGain();
                 monitorGain.gain.value = monitorControl.value / 100;
                 
-                const bufferSize = 1024;
+                const bufferSize = 512;
                 const channels = isMusicMode ? 2 : 1;
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
+                
+                let chunksSent = 0;
+                let lastLog = Date.now();
                 
                 processor.onaudioprocess = (e) => {
                     if (!isBroadcasting || !socket.connected) return;
@@ -865,6 +868,14 @@ function initAdmin() {
                             sampleRate: audioContext.sampleRate,
                             channels: channels
                         });
+                        
+                        chunksSent++;
+                        if (chunksSent % 200 === 0) {
+                            const now = Date.now();
+                            const rate = 200 / ((now - lastLog) / 1000);
+                            console.log('Broadcaster sending:', rate.toFixed(1), 'chunks/sec');
+                            lastLog = now;
+                        }
                     }
                 };
                 
