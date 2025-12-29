@@ -6,6 +6,122 @@ if (typeof io === 'undefined') {
     throw new Error('Socket.IO not loaded - server not running');
 }
 
+// Language system
+let currentLang = localStorage.getItem('language') || 'cs';
+
+const translations = {
+    cs: {
+        logo: 'HITRADIO AUTOBUS',
+        clickToListen: 'Klikni pro poslech',
+        nowPlaying: 'Nyní hraje - HITRADIO AUTOBUS',
+        ready: 'Připraveno',
+        liveStream: '🔴 ŽIVÉ vysílání probíhá',
+        cannotConnect: '❌ Nelze se připojit k serveru',
+        adminPanel: '🔒 ADMIN PANEL',
+        enterPin: 'Zadejte PIN pro přístup',
+        unlock: 'Odemknout',
+        wrongPin: '❌ Nesprávný PIN',
+        broadcastControl: '🎙️ Ovládání vysílání',
+        audioMode: 'Režim zvuku',
+        music: '🎵 Hudba (vysoká kvalita)',
+        voice: '🎤 Hlas (potlačení šumu)',
+        musicHint: '💡 Pro hudbu vyberte "Hudba" - vypne filtry',
+        selectMic: 'Vyberte mikrofon',
+        loadingMics: 'Načítání mikrofonů...',
+        noMicsFound: 'Žádné mikrofony nenalezeny',
+        micError: 'Chyba načítání mikrofonů',
+        micVolume: 'Hlasitost mikrofonu',
+        monitorVolume: 'Hlasitost monitorování (jen pro vás)',
+        monitorHint: '💡 Toto slyšíte pouze vy. Posluchači slyší "Hlasitost mikrofonu".',
+        startBroadcast: '🎤 Spustit vysílání',
+        stopBroadcast: '🎤 Zastavit vysílání',
+        readyToBroadcast: 'Připraveno k vysílání',
+        broadcasting: '🔴 Vysílání ŽIVĚ',
+        selectMicError: '❌ Vyberte mikrofon',
+        listeners: '👥'
+    },
+    en: {
+        logo: 'HITRADIO AUTOBUS',
+        clickToListen: 'Click to listen',
+        nowPlaying: 'Now playing - HITRADIO AUTOBUS',
+        ready: 'Ready',
+        liveStream: '🔴 LIVE broadcast',
+        cannotConnect: '❌ Cannot connect to server',
+        adminPanel: '🔒 ADMIN PANEL',
+        enterPin: 'Enter PIN to access',
+        unlock: 'Unlock',
+        wrongPin: '❌ Wrong PIN',
+        broadcastControl: '🎙️ Broadcast Control',
+        audioMode: 'Audio Mode',
+        music: '🎵 Music (high quality)',
+        voice: '🎤 Voice (noise suppression)',
+        musicHint: '💡 Select "Music" for music - disables filters',
+        selectMic: 'Select microphone',
+        loadingMics: 'Loading microphones...',
+        noMicsFound: 'No microphones found',
+        micError: 'Error loading microphones',
+        micVolume: 'Microphone volume',
+        monitorVolume: 'Monitor volume (for you only)',
+        monitorHint: '💡 Only you hear this. Listeners hear "Microphone volume".',
+        startBroadcast: '🎤 Start broadcast',
+        stopBroadcast: '🎤 Stop broadcast',
+        readyToBroadcast: 'Ready to broadcast',
+        broadcasting: '🔴 Broadcasting LIVE',
+        selectMicError: '❌ Select a microphone',
+        listeners: '👥'
+    }
+};
+
+function t(key) {
+    return translations[currentLang][key] || key;
+}
+
+function updateLanguage() {
+    document.documentElement.lang = currentLang;
+    
+    // Update all translatable elements
+    const logo = document.querySelector('.logo');
+    if (logo) logo.textContent = t('logo');
+    
+    const status = document.getElementById('status');
+    if (status && !status.classList.contains('live')) {
+        status.textContent = t('clickToListen');
+    }
+    
+    const connectionStatus = document.getElementById('connectionStatus');
+    if (connectionStatus && !connectionStatus.classList.contains('connected')) {
+        connectionStatus.textContent = t('ready');
+    }
+    
+    // Admin panel
+    const adminLogo = document.querySelector('.admin-logo');
+    if (adminLogo) adminLogo.textContent = t('adminPanel');
+    
+    const pinSectionH3 = document.querySelector('.pin-section h3');
+    if (pinSectionH3) pinSectionH3.textContent = t('enterPin');
+    
+    const submitBtn = document.getElementById('submitPin');
+    if (submitBtn) submitBtn.textContent = t('unlock');
+    
+    const pinError = document.getElementById('pinError');
+    if (pinError) pinError.textContent = t('wrongPin');
+    
+    const controlPanelH3 = document.querySelector('.control-panel h3');
+    if (controlPanelH3) controlPanelH3.textContent = t('broadcastControl');
+    
+    // Update language button
+    const langBtn = document.getElementById('langToggle');
+    if (langBtn) {
+        langBtn.textContent = currentLang === 'cs' ? 'EN' : 'CZ';
+    }
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'cs' ? 'en' : 'cs';
+    localStorage.setItem('language', currentLang);
+    updateLanguage();
+}
+
 // Detect if we're on the admin page
 const isAdmin = window.location.hash === '#admin';
 
@@ -20,7 +136,7 @@ socket.on('connect_error', (error) => {
     console.error('Connection error:', error);
     const status = document.getElementById('connectionStatus') || document.getElementById('broadcastStatus');
     if (status) {
-        status.textContent = '❌ Nelze se připojit k serveru';
+        status.textContent = t('cannotConnect');
         status.style.color = '#dc2626';
     }
 });
@@ -29,7 +145,7 @@ socket.on('connect', () => {
     console.log('Connected to server');
     const status = document.getElementById('connectionStatus') || document.getElementById('broadcastStatus');
     if (status && !isAdmin) {
-        status.textContent = 'Připraveno';
+        status.textContent = t('ready');
         status.classList.remove('connected');
     }
 });
@@ -43,6 +159,9 @@ if (isAdmin) {
     initRadio();
 }
 
+// Initialize language
+updateLanguage();
+
 // ===== RADIO INTERFACE =====
 function initRadio() {
     const playButton = document.getElementById('playButton');
@@ -55,16 +174,16 @@ function initRadio() {
     let audioContext;
     let audioQueue = [];
     let nextPlayTime = 0;
-    let scheduledUntil = 0;
+    const BUFFER_LATENCY = 0.2; // 200ms buffer for smooth playback
 
     // Socket event listeners
     socket.on('stream_start', () => {
-        connectionStatus.textContent = '🔴 ŽIVÉ vysílání probíhá';
+        connectionStatus.textContent = t('liveStream');
         connectionStatus.classList.add('connected');
     });
 
     socket.on('stream_stop', () => {
-        connectionStatus.textContent = 'Připraveno';
+        connectionStatus.textContent = t('ready');
         connectionStatus.classList.remove('connected');
         audioQueue = [];
         if (isPlaying) {
@@ -73,7 +192,7 @@ function initRadio() {
     });
 
     socket.on('broadcaster_connected', () => {
-        connectionStatus.textContent = '🔴 ŽIVÉ vysílání probíhá';
+        connectionStatus.textContent = t('liveStream');
         connectionStatus.classList.add('connected');
     });
 
@@ -87,12 +206,7 @@ function initRadio() {
     function processAudioQueue() {
         const currentTime = audioContext.currentTime;
         
-        // Initialize scheduling time
-        if (scheduledUntil < currentTime) {
-            scheduledUntil = currentTime + 0.1; // Small initial buffer
-        }
-        
-        // Process all available chunks
+        // Process all chunks in queue
         while (audioQueue.length > 0 && isPlaying) {
             const data = audioQueue.shift();
 
@@ -120,9 +234,13 @@ function initRadio() {
                 source.buffer = audioBuffer;
                 source.connect(audioContext.destination);
                 
-                // Schedule at the end of previously scheduled audio
-                source.start(scheduledUntil);
-                scheduledUntil += audioBuffer.duration;
+                // Maintain buffer for smooth playback - never let it get too close to now
+                if (nextPlayTime < currentTime + BUFFER_LATENCY) {
+                    nextPlayTime = currentTime + BUFFER_LATENCY;
+                }
+                
+                source.start(nextPlayTime);
+                nextPlayTime += audioBuffer.duration;
                 
             } catch (e) {
                 console.error('Audio processing error:', e);
@@ -141,12 +259,11 @@ function initRadio() {
             }
             
             nextPlayTime = 0;
-            scheduledUntil = 0;
             audioQueue = [];
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
-            status.textContent = 'Nyní hraje - HITRADIO AUTOBUS';
+            status.textContent = t('nowPlaying');
             status.classList.add('live');
             visualizer.classList.add('active');
             isPlaying = true;
@@ -155,13 +272,12 @@ function initRadio() {
         } else {
             playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
             playButton.classList.remove('playing');
-            status.textContent = 'Klikni pro poslech';
+            status.textContent = t('clickToListen');
             status.classList.remove('live');
             visualizer.classList.remove('active');
             isPlaying = false;
             audioQueue = [];
             nextPlayTime = 0;
-            scheduledUntil = 0;
             
             socket.emit('listener_left');
         }
@@ -197,7 +313,10 @@ function initAdmin() {
 
     // Socket event listeners
     socket.on('listener_count', (count) => {
-        listenersCount.textContent = `👥 ${count} posluchač${count === 1 ? '' : count < 5 ? 'i' : 'ů'}`;
+        const suffix = currentLang === 'cs' 
+            ? (count === 1 ? '' : count < 5 ? 'i' : 'ů')
+            : (count === 1 ? '' : 's');
+        listenersCount.textContent = `${t('listeners')} ${count} ${currentLang === 'cs' ? 'posluchač' + suffix : 'listener' + suffix}`;
     });
 
     async function loadMicrophones() {
@@ -213,18 +332,18 @@ function initAdmin() {
             microphoneSelect.innerHTML = '';
             
             if (microphones.length === 0) {
-                microphoneSelect.innerHTML = '<option value="">Žádné mikrofony nenalezeny</option>';
+                microphoneSelect.innerHTML = `<option value="">${t('noMicsFound')}</option>`;
                 return;
             }
             
             microphones.forEach((mic, index) => {
                 const option = document.createElement('option');
                 option.value = mic.deviceId;
-                option.textContent = mic.label || `Mikrofon ${index + 1}`;
+                option.textContent = mic.label || `${currentLang === 'cs' ? 'Mikrofon' : 'Microphone'} ${index + 1}`;
                 microphoneSelect.appendChild(option);
             });
         } catch (err) {
-            microphoneSelect.innerHTML = '<option value="">Chyba načítání mikrofonů</option>';
+            microphoneSelect.innerHTML = `<option value="">${t('micError')}</option>`;
             console.error('Error loading microphones:', err);
         }
     }
@@ -267,7 +386,7 @@ function initAdmin() {
             try {
                 const selectedMicId = microphoneSelect.value;
                 if (!selectedMicId) {
-                    broadcastStatus.textContent = '❌ Vyberte mikrofon';
+                    broadcastStatus.textContent = t('selectMicError');
                     return;
                 }
 
@@ -338,12 +457,12 @@ function initAdmin() {
                 socket.emit('stream_start');
                 
                 micButton.classList.add('active');
-                micButton.textContent = '🎤 Zastavit vysílání';
-                broadcastStatus.textContent = '🔴 Vysílání ŽIVĚ';
+                micButton.textContent = t('stopBroadcast');
+                broadcastStatus.textContent = t('broadcasting');
                 broadcastStatus.classList.add('live');
                 isBroadcasting = true;
             } catch (err) {
-                broadcastStatus.textContent = '❌ Chyba: ' + err.message;
+                broadcastStatus.textContent = '❌ ' + err.message;
                 broadcastStatus.classList.remove('live');
                 console.error(err);
             }
@@ -368,8 +487,8 @@ function initAdmin() {
             socket.emit('stream_stop');
             
             micButton.classList.remove('active');
-            micButton.textContent = '🎤 Spustit vysílání';
-            broadcastStatus.textContent = 'Připraveno k vysílání';
+            micButton.textContent = t('startBroadcast');
+            broadcastStatus.textContent = t('readyToBroadcast');
             broadcastStatus.classList.remove('live');
             isBroadcasting = false;
         }
