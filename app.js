@@ -274,15 +274,7 @@ function initRadio() {
     let isScheduling = false;
     let listenerGainNode;
     let scheduledSources = [];
-    const MAX_QUEUE_SIZE = 600;
-    const MIN_BUFFER = 0.5;
-    const TARGET_BUFFER = 3.0;
-    const INITIAL_BUFFER_SIZE = 120;
-    const MIN_QUEUE_FOR_SCHEDULING = 25;
-    let hasStartedPlayback = false;
-    let scheduleInterval = null;
-    let bufferWarningCount = 0;
-    let schedulingPaused = false;
+    let wakeLock = null;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -334,88 +326,35 @@ function initRadio() {
         connectionStatus.classList.add('connected');
     });
 
-    let chunkCount = 0;
-    let lastChunkTime = Date.now();
-    
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
-            if (audioQueue.length < MAX_QUEUE_SIZE) {
-                audioQueue.push(data);
-                chunkCount++;
-                
-                // Log chunk rate every 100 chunks
-                if (chunkCount % 100 === 0) {
-                    const now = Date.now();
-                    const rate = 100 / ((now - lastChunkTime) / 1000);
-                    console.log('Chunk rate:', rate.toFixed(1), 'chunks/sec, Queue:', audioQueue.length);
-                    lastChunkTime = now;
-                }
-            }
+            audioQueue.push(data);
             
-            // Start playback once we have enough buffer
-            if (!hasStartedPlayback && audioQueue.length >= INITIAL_BUFFER_SIZE) {
-                hasStartedPlayback = true;
-                console.log('✓ Starting playback with', audioQueue.length, 'chunks buffered (~' + (audioQueue.length * 0.0053).toFixed(1) + 's)');
+            if (!isScheduling) {
                 scheduleAudio();
-            }
-            
-            // Resume scheduling if paused and queue is sufficient
-            if (schedulingPaused && audioQueue.length >= MIN_QUEUE_FOR_SCHEDULING && hasStartedPlayback) {
-                schedulingPaused = false;
             }
         }
     });
 
     function scheduleAudio() {
-        if (isScheduling || !isPlaying || !hasStartedPlayback) return;
+        if (isScheduling || !isPlaying) return;
         
         isScheduling = true;
         
         const schedule = () => {
             if (!isPlaying) {
                 isScheduling = false;
-                if (scheduleInterval) {
-                    clearInterval(scheduleInterval);
-                    scheduleInterval = null;
-                }
                 return;
             }
             
             const currentTime = audioContext.currentTime;
             
-            // Initialize playback time
-            if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + MIN_BUFFER;
+            if (nextPlayTime === 0) {
+                nextPlayTime = currentTime + 0.3;
             }
             
-            let bufferAhead = nextPlayTime - currentTime;
-            
-            // Pause scheduling if queue is too low
-            if (audioQueue.length < MIN_QUEUE_FOR_SCHEDULING && bufferAhead < TARGET_BUFFER) {
-                if (!schedulingPaused) {
-                    console.log('⏸ Pausing scheduling - queue:', audioQueue.length, '/', MIN_QUEUE_FOR_SCHEDULING, 'chunks, buffer:', bufferAhead.toFixed(2) + 's');
-                    schedulingPaused = true;
-                }
-                return;
-            }
-            
-            // Resume scheduling
-            if (schedulingPaused && audioQueue.length >= MIN_QUEUE_FOR_SCHEDULING) {
-                console.log('▶ Resuming scheduling - queue:', audioQueue.length, 'chunks, buffer:', bufferAhead.toFixed(2) + 's');
-                schedulingPaused = false;
-            }
-            
-            // Clean up finished sources
-            scheduledSources = scheduledSources.filter(src => {
-                if (src.endTime && src.endTime < currentTime - 0.1) {
-                    return false;
-                }
-                return true;
-            });
-            
-            // Schedule audio chunks in batches
-            let scheduled = 0;
-            while (audioQueue.length > MIN_QUEUE_FOR_SCHEDULING && bufferAhead < TARGET_BUFFER) {
+            let scheduledCount = 0;
+            while (audioQueue.length > 0 && scheduledCount < 10) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -427,7 +366,7 @@ function initRadio() {
                     const audioBuffer = audioContext.createBuffer(
                         numChannels,
                         bufferLength,
-                        data.sampleRate || 48000
+                        data.sampleRate || audioContext.sampleRate
                     );
                     
                     for (let i = 0; i < numChannels; i++) {
@@ -438,35 +377,24 @@ function initRadio() {
                     source.buffer = audioBuffer;
                     source.connect(listenerGainNode);
                     
-                    const startTime = Math.max(nextPlayTime, currentTime);
-                    const endTime = startTime + audioBuffer.duration;
-                    source.endTime = endTime;
+                    if (nextPlayTime < currentTime) {
+                        nextPlayTime = currentTime + 0.05;
+                    }
                     
-                    source.onended = () => {
-                        const idx = scheduledSources.indexOf(source);
-                        if (idx > -1) {
-                            scheduledSources.splice(idx, 1);
-                        }
-                    };
+                    source.start(nextPlayTime);
                     
-                    source.start(startTime);
-                    scheduledSources.push(source);
-                    
-                    nextPlayTime = endTime;
-                    bufferAhead = nextPlayTime - currentTime;
-                    scheduled++;
+                    nextPlayTime += audioBuffer.duration;
+                    scheduledCount++;
                     
                 } catch (e) {
                     console.error('Audio scheduling error:', e);
                 }
             }
+            
+            setTimeout(schedule, 50);
         };
         
-        // Run scheduler at moderate frequency
         schedule();
-        if (!scheduleInterval) {
-            scheduleInterval = setInterval(schedule, 100);
-        }
     }
 
     playButton.addEventListener('click', async () => {
@@ -487,12 +415,44 @@ function initRadio() {
             nextPlayTime = 0;
             audioQueue = [];
             isScheduling = false;
-            scheduledSources = [];
-            hasStartedPlayback = false;
-            bufferWarningCount = 0;
-            schedulingPaused = false;
-            chunkCount = 0;
-            lastChunkTime = Date.now();
+            
+            // Enable Media Session API for background playback on mobile
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'HITRADIO AUTOBUS',
+                    artist: 'Live Stream',
+                    album: 'Radio',
+                    artwork: [
+                        { src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="%23ef4444"/%3E%3C/svg%3E', sizes: '96x96', type: 'image/svg+xml' }
+                    ]
+                });
+                
+                navigator.mediaSession.setActionHandler('play', () => {
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                });
+                
+                navigator.mediaSession.setActionHandler('pause', () => {
+                    playButton.click();
+                });
+                
+                navigator.mediaSession.playbackState = 'playing';
+            }
+            
+            // Request wake lock to keep audio playing when screen is off
+            if ('wakeLock' in navigator) {
+                try {
+                    navigator.wakeLock.request('screen').then(lock => {
+                        wakeLock = lock;
+                        console.log('Wake lock acquired');
+                    }).catch(err => {
+                        console.log('Wake lock error:', err);
+                    });
+                } catch (err) {
+                    console.log('Wake lock not supported:', err);
+                }
+            }
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -514,21 +474,18 @@ function initRadio() {
             audioQueue = [];
             nextPlayTime = 0;
             isScheduling = false;
-            hasStartedPlayback = false;
-            bufferWarningCount = 0;
-            schedulingPaused = false;
             
-            if (scheduleInterval) {
-                clearInterval(scheduleInterval);
-                scheduleInterval = null;
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'paused';
             }
             
-            scheduledSources.forEach(source => {
-                try {
-                    source.stop();
-                } catch (e) {}
-            });
-            scheduledSources = [];
+            // Release wake lock
+            if (wakeLock) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                    console.log('Wake lock released');
+                });
+            }
             
             if (socket.connected) {
                 socket.emit('listener_left');
