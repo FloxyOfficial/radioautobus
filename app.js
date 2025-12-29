@@ -109,6 +109,43 @@ function updateLanguage() {
     const controlPanelH3 = document.querySelector('.control-panel h3');
     if (controlPanelH3) controlPanelH3.textContent = t('broadcastControl');
     
+    // Update admin controls
+    const audioModeLabel = document.querySelector('.control-group label[data-lang="audioMode"]');
+    if (audioModeLabel) audioModeLabel.innerHTML = t('audioMode');
+    
+    const audioModeSelect = document.getElementById('audioMode');
+    if (audioModeSelect) {
+        audioModeSelect.innerHTML = `
+            <option value="music">${t('music')}</option>
+            <option value="voice">${t('voice')}</option>
+        `;
+    }
+    
+    const micSelectLabel = document.querySelector('.control-group label[data-lang="selectMic"]');
+    if (micSelectLabel) micSelectLabel.textContent = t('selectMic');
+    
+    const micVolumeLabel = document.querySelector('.control-group label[data-lang="micVolume"]');
+    if (micVolumeLabel) {
+        const volumeValue = document.getElementById('volumeValue');
+        micVolumeLabel.innerHTML = `${t('micVolume')} <span class="volume-value" id="volumeValue">${volumeValue ? volumeValue.textContent : '100%'}</span>`;
+    }
+    
+    const monitorVolumeLabel = document.querySelector('.control-group label[data-lang="monitorVolume"]');
+    if (monitorVolumeLabel) {
+        const monitorValue = document.getElementById('monitorValue');
+        monitorVolumeLabel.innerHTML = `${t('monitorVolume')} <span class="volume-value" id="monitorValue">${monitorValue ? monitorValue.textContent : '50%'}</span>`;
+    }
+    
+    const micButton = document.getElementById('micButton');
+    if (micButton && !micButton.classList.contains('active')) {
+        micButton.textContent = t('startBroadcast');
+    }
+    
+    const broadcastStatus = document.getElementById('broadcastStatus');
+    if (broadcastStatus && !broadcastStatus.classList.contains('live')) {
+        broadcastStatus.textContent = t('readyToBroadcast');
+    }
+    
     // Update language button
     const langBtn = document.getElementById('langToggle');
     if (langBtn) {
