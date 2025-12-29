@@ -236,53 +236,82 @@ function initRadio() {
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
             audioQueue.push(data);
-            processAudioQueue();
+            console.log('Received chunk, queue size:', audioQueue.length);
+            
+            // Start scheduling if not already doing so
+            if (!isScheduling) {
+                scheduleAudio();
+            }
         }
     });
 
-    function processAudioQueue() {
-        const currentTime = audioContext.currentTime;
+    function scheduleAudio() {
+        if (isScheduling || !isPlaying) return;
         
-        // Process all chunks in queue
-        while (audioQueue.length > 0 && isPlaying) {
-            const data = audioQueue.shift();
-
-            try {
-                const audioData = data.audioData;
-                
-                // Handle both mono and stereo
-                const channelData = Array.isArray(audioData[0]) ? audioData : [audioData];
-                const numChannels = channelData.length;
-                const bufferLength = channelData[0].length;
-                
-                const audioBuffer = audioContext.createBuffer(
-                    numChannels, 
-                    bufferLength, 
-                    data.sampleRate || audioContext.sampleRate
-                );
-                
-                // Copy all channels
-                for (let i = 0; i < numChannels; i++) {
-                    const float32Array = new Float32Array(channelData[i]);
-                    audioBuffer.copyToChannel(float32Array, i);
-                }
-                
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                
-                // Maintain buffer for smooth playback - never let it get too close to now
-                if (nextPlayTime < currentTime + BUFFER_LATENCY) {
-                    nextPlayTime = currentTime + BUFFER_LATENCY;
-                }
-                
-                source.start(nextPlayTime);
-                nextPlayTime += audioBuffer.duration;
-                
-            } catch (e) {
-                console.error('Audio processing error:', e);
+        isScheduling = true;
+        console.log('Starting audio scheduler');
+        
+        // Schedule audio in batches for smoother playback
+        const schedule = () => {
+            if (!isPlaying) {
+                isScheduling = false;
+                return;
             }
-        }
+            
+            const currentTime = audioContext.currentTime;
+            
+            // Initialize nextPlayTime with buffer
+            if (nextPlayTime === 0 || nextPlayTime < currentTime) {
+                nextPlayTime = currentTime + 0.3; // 300ms initial buffer
+                console.log('Initialized playback time:', nextPlayTime);
+            }
+            
+            // Schedule all available chunks
+            let scheduledCount = 0;
+            while (audioQueue.length > 0 && scheduledCount < 10) {
+                const data = audioQueue.shift();
+                
+                try {
+                    const audioData = data.audioData;
+                    const channelData = Array.isArray(audioData[0]) ? audioData : [audioData];
+                    const numChannels = channelData.length;
+                    const bufferLength = channelData[0].length;
+                    
+                    const audioBuffer = audioContext.createBuffer(
+                        numChannels,
+                        bufferLength,
+                        data.sampleRate || audioContext.sampleRate
+                    );
+                    
+                    for (let i = 0; i < numChannels; i++) {
+                        audioBuffer.copyToChannel(new Float32Array(channelData[i]), i);
+                    }
+                    
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    source.start(nextPlayTime);
+                    
+                    console.log('Scheduled chunk at:', nextPlayTime, 'duration:', audioBuffer.duration);
+                    
+                    nextPlayTime += audioBuffer.duration;
+                    scheduledCount++;
+                    
+                } catch (e) {
+                    console.error('Audio scheduling error:', e);
+                }
+            }
+            
+            // Keep scheduling as long as there's audio
+            if (audioQueue.length > 0 || nextPlayTime > currentTime) {
+                setTimeout(schedule, 50); // Check every 50ms
+            } else {
+                console.log('Scheduler stopped - no more audio');
+                isScheduling = false;
+            }
+        };
+        
+        schedule();
     }
 
     playButton.addEventListener('click', async () => {
@@ -306,6 +335,8 @@ function initRadio() {
             visualizer.classList.add('active');
             isPlaying = true;
             
+            console.log('Player started, waiting for audio...');
+            
             socket.emit('listener_joined');
         } else {
             playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
@@ -317,6 +348,8 @@ function initRadio() {
             audioQueue = [];
             nextPlayTime = 0;
             isScheduling = false;
+            
+            console.log('Player stopped');
             
             socket.emit('listener_left');
         }
@@ -489,7 +522,7 @@ function initAdmin() {
                 gainNode.connect(processor);
                 processor.connect(audioContext.destination);
                 
-                // Monitor connection - connect source directly, not through processor
+                // Monitor connection - separate source for monitoring
                 const monitorSource = audioContext.createMediaStreamSource(micStream);
                 monitorSource.connect(monitorGain);
                 monitorGain.connect(audioContext.destination);
