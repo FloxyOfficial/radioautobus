@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
 
   socket.on('audio_chunk', (data) => {
     if (socket.id === broadcaster) {
-      socket.volatile.broadcast.emit('audio_chunk', data);
+      socket.broadcast.emit('audio_chunk', data);
     }
   });
 
