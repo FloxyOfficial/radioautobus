@@ -47,7 +47,6 @@ io.on('connection', (socket) => {
 
   socket.on('listener_joined', () => {
     listeners.add(socket.id);
-    console.log('Listener joined:', socket.id, '- Total listeners:', listeners.size);
     if (broadcaster) {
       io.to(broadcaster).emit('listener_count', listeners.size);
     }
@@ -58,15 +57,9 @@ io.on('connection', (socket) => {
 
   socket.on('listener_left', () => {
     listeners.delete(socket.id);
-    console.log('Listener left:', socket.id, '- Total listeners:', listeners.size);
     if (broadcaster) {
       io.to(broadcaster).emit('listener_count', listeners.size);
     }
-  });
-  
-  // Handle ping to keep connection alive
-  socket.on('ping', () => {
-    socket.emit('pong');
   });
 
   socket.on('disconnect', () => {
