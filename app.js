@@ -119,7 +119,11 @@ function updateLanguage() {
     const listenerVolumeLabel = document.querySelector('.control-group label[data-lang="listenerVolume"]');
     if (listenerVolumeLabel) {
         const volumeValue = document.getElementById('listenerVolumeValue');
-        listenerVolumeLabel.innerHTML = `${t('listenerVolume')} <span class="volume-value" id="listenerVolumeValue">${volumeValue ? volumeValue.textContent : '100%'}</span>`;
+        const currentValue = volumeValue ? volumeValue.textContent : '100%';
+        listenerVolumeLabel.childNodes[0].textContent = t('listenerVolume') + ' ';
+        if (volumeValue) {
+            volumeValue.textContent = currentValue;
+        }
     }
     
     // Admin panel
@@ -151,19 +155,31 @@ function updateLanguage() {
     const talkingVolumeLabel = document.querySelector('.control-group label[data-lang="talkingVolume"]');
     if (talkingVolumeLabel) {
         const volumeValue = document.getElementById('talkingVolumeValue');
-        talkingVolumeLabel.innerHTML = `${t('talkingVolume')} <span class="volume-value" id="talkingVolumeValue">${volumeValue ? volumeValue.textContent : '100%'}</span>`;
+        const currentValue = volumeValue ? volumeValue.textContent : '100%';
+        talkingVolumeLabel.childNodes[0].textContent = t('talkingVolume') + ' ';
+        if (volumeValue) {
+            volumeValue.textContent = currentValue;
+        }
     }
     
     const musicVolumeLabel = document.querySelector('.control-group label[data-lang="musicVolume"]');
     if (musicVolumeLabel) {
         const volumeValue = document.getElementById('musicVolumeValue');
-        musicVolumeLabel.innerHTML = `${t('musicVolume')} <span class="volume-value" id="musicVolumeValue">${volumeValue ? volumeValue.textContent : '80%'}</span>`;
+        const currentValue = volumeValue ? volumeValue.textContent : '80%';
+        musicVolumeLabel.childNodes[0].textContent = t('musicVolume') + ' ';
+        if (volumeValue) {
+            volumeValue.textContent = currentValue;
+        }
     }
     
     const monitorVolumeLabel = document.querySelector('.control-group label[data-lang="monitorVolume"]');
     if (monitorVolumeLabel) {
         const monitorValue = document.getElementById('monitorValue');
-        monitorVolumeLabel.innerHTML = `${t('monitorVolume')} <span class="volume-value" id="monitorValue">${monitorValue ? monitorValue.textContent : '50%'}</span>`;
+        const currentValue = monitorValue ? monitorValue.textContent : '50%';
+        monitorVolumeLabel.childNodes[0].textContent = t('monitorVolume') + ' ';
+        if (monitorValue) {
+            monitorValue.textContent = currentValue;
+        }
     }
     
     const modeButton = document.getElementById('modeButton');
@@ -257,6 +273,7 @@ function initRadio() {
     let nextPlayTime = 0;
     let isScheduling = false;
     let listenerGainNode;
+    const MAX_QUEUE_SIZE = 50;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -298,7 +315,9 @@ function initRadio() {
 
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
-            audioQueue.push(data);
+            if (audioQueue.length < MAX_QUEUE_SIZE) {
+                audioQueue.push(data);
+            }
             
             if (!isScheduling) {
                 scheduleAudio();
@@ -320,11 +339,13 @@ function initRadio() {
             const currentTime = audioContext.currentTime;
             
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.1;
+                nextPlayTime = currentTime + 0.05;
             }
             
-            let scheduledCount = 0;
-            while (audioQueue.length > 0 && scheduledCount < 5) {
+            const bufferAhead = nextPlayTime - currentTime;
+            const targetBuffer = 0.2;
+            
+            while (audioQueue.length > 0 && bufferAhead < targetBuffer) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -349,14 +370,13 @@ function initRadio() {
                     source.start(nextPlayTime);
                     
                     nextPlayTime += audioBuffer.duration;
-                    scheduledCount++;
                     
                 } catch (e) {
                     console.error('Audio scheduling error:', e);
                 }
             }
             
-            setTimeout(schedule, 100);
+            setTimeout(schedule, 50);
         };
         
         schedule();
