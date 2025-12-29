@@ -36,6 +36,12 @@
             <div class="bar"></div>
             <div class="bar"></div>
         </div>
+        
+        <div class="control-group listener-volume">
+            <label data-lang="listenerVolume">Hlasitost rádia <span class="volume-value" id="listenerVolumeValue">100%</span></label>
+            <input type="range" id="listenerVolumeControl" min="0" max="100" value="100">
+        </div>
+        
         <div class="connection-status" id="connectionStatus">Připraveno</div>
     </div>
 
@@ -53,37 +59,43 @@
         <div class="control-panel hidden" id="controlPanel">
             <h3>🎙️ Ovládání vysílání</h3>
             
+            <h4>🎙️ Nastavení mikrofonů</h4>
+            
             <div class="control-group">
-                <label data-lang="audioMode">Režim zvuku</label>
-                <select id="audioMode">
-                    <option value="music">🎵 Hudba (vysoká kvalita)</option>
-                    <option value="voice">🎤 Hlas (potlačení šumu)</option>
+                <label data-lang="talkingMic">Mikrofon pro mluvení</label>
+                <select id="talkingMicSelect">
+                    <option value="">Načítání mikrofonů...</option>
                 </select>
-                <small style="display: block; margin-top: 8px; color: #999; font-size: 13px;">
-                    💡 Pro hudbu vyberte "Hudba" - vypne filtry
-                </small>
             </div>
             
             <div class="control-group">
-                <label data-lang="selectMic">Vyberte mikrofon</label>
-                <select id="microphoneSelect">
+                <label data-lang="musicMic">Mikrofon pro hudbu</label>
+                <select id="musicMicSelect">
                     <option value="">Načítání mikrofonů...</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label data-lang="micVolume">Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
-                <input type="range" id="volumeControl" min="0" max="100" value="100">
+                <label data-lang="talkingVolume">Hlasitost mluvení <span class="volume-value" id="talkingVolumeValue">100%</span></label>
+                <input type="range" id="talkingVolumeControl" min="0" max="100" value="100">
+            </div>
+
+            <div class="control-group">
+                <label data-lang="musicVolume">Hlasitost hudby <span class="volume-value" id="musicVolumeValue">80%</span></label>
+                <input type="range" id="musicVolumeControl" min="0" max="100" value="80">
             </div>
 
             <div class="control-group">
                 <label data-lang="monitorVolume">Hlasitost monitorování (jen pro vás) <span class="volume-value" id="monitorValue">50%</span></label>
                 <input type="range" id="monitorControl" min="0" max="100" value="50">
                 <small style="display: block; margin-top: 8px; color: #999; font-size: 13px;">
-                    💡 Toto slyšíte pouze vy. Posluchači slyší "Hlasitost mikrofonu".
+                    💡 Toto slyšíte pouze vy. Posluchači slyší nastavené hlasitosti výše.
                 </small>
             </div>
 
+            <div class="mode-status" id="currentModeLabel">Aktuální režim: Hudba</div>
+            
+            <button class="mode-button" id="modeButton" disabled>🎤 Přepnout na mluvení</button>
             <button class="mic-button" id="micButton">🎤 Spustit vysílání</button>
             <div class="broadcast-status" id="broadcastStatus">Připraveno k vysílání</div>
             <div class="listeners-count" id="listenersCount">👥 0 posluchačů</div>
@@ -92,7 +104,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Wait for Socket.IO to load before loading app.js
         if (typeof io === 'undefined') {
             console.error('Socket.IO failed to load. Make sure the server is running.');
             document.body.innerHTML = '<div style="color: white; text-align: center; padding: 50px; font-family: Arial;"><h1>❌ Server Error</h1><p>Cannot connect to server. Make sure you started the server with: npm start</p></div>';
