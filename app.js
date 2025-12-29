@@ -275,12 +275,14 @@ function initRadio() {
     let listenerGainNode;
     let scheduledSources = [];
     const MAX_QUEUE_SIZE = 500;
-    const MIN_BUFFER = 0.3;
-    const TARGET_BUFFER = 1.5;
-    const INITIAL_BUFFER_SIZE = 30;
+    const MIN_BUFFER = 0.5;
+    const TARGET_BUFFER = 2.5;
+    const INITIAL_BUFFER_SIZE = 80;
+    const MIN_QUEUE_FOR_SCHEDULING = 30;
     let hasStartedPlayback = false;
     let scheduleInterval = null;
     let bufferWarningCount = 0;
+    let schedulingPaused = false;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -353,8 +355,13 @@ function initRadio() {
             // Start playback once we have enough buffer
             if (!hasStartedPlayback && audioQueue.length >= INITIAL_BUFFER_SIZE) {
                 hasStartedPlayback = true;
-                console.log('Starting playback with', audioQueue.length, 'chunks buffered');
+                console.log('✓ Starting playback with', audioQueue.length, 'chunks buffered (~' + (audioQueue.length * 0.021).toFixed(1) + 's)');
                 scheduleAudio();
+            }
+            
+            // Resume scheduling if paused and queue is sufficient
+            if (schedulingPaused && audioQueue.length >= MIN_QUEUE_FOR_SCHEDULING && hasStartedPlayback) {
+                schedulingPaused = false;
             }
         }
     });
@@ -381,13 +388,22 @@ function initRadio() {
                 nextPlayTime = currentTime + MIN_BUFFER;
             }
             
-            // Adaptive recovery if buffer is critically low
-            if (nextPlayTime < currentTime + 0.1 && audioQueue.length > 10) {
-                console.log('Buffer recovery: resetting to', MIN_BUFFER, 's ahead');
-                nextPlayTime = currentTime + MIN_BUFFER;
+            let bufferAhead = nextPlayTime - currentTime;
+            
+            // Pause scheduling if queue is too low
+            if (audioQueue.length < MIN_QUEUE_FOR_SCHEDULING && bufferAhead < TARGET_BUFFER) {
+                if (!schedulingPaused) {
+                    console.log('⏸ Pausing scheduling - queue:', audioQueue.length, '/', MIN_QUEUE_FOR_SCHEDULING, 'chunks, buffer:', bufferAhead.toFixed(2) + 's');
+                    schedulingPaused = true;
+                }
+                return;
             }
             
-            let bufferAhead = nextPlayTime - currentTime;
+            // Resume scheduling
+            if (schedulingPaused && audioQueue.length >= MIN_QUEUE_FOR_SCHEDULING) {
+                console.log('▶ Resuming scheduling - queue:', audioQueue.length, 'chunks, buffer:', bufferAhead.toFixed(2) + 's');
+                schedulingPaused = false;
+            }
             
             // Clean up finished sources
             scheduledSources = scheduledSources.filter(src => {
@@ -397,9 +413,9 @@ function initRadio() {
                 return true;
             });
             
-            // Schedule audio chunks aggressively
+            // Schedule audio chunks in batches
             let scheduled = 0;
-            while (audioQueue.length > 0 && bufferAhead < TARGET_BUFFER) {
+            while (audioQueue.length > MIN_QUEUE_FOR_SCHEDULING && bufferAhead < TARGET_BUFFER) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -444,22 +460,12 @@ function initRadio() {
                     console.error('Audio scheduling error:', e);
                 }
             }
-            
-            // Monitor buffer health (limit warnings)
-            if (bufferAhead < MIN_BUFFER && audioQueue.length === 0) {
-                if (bufferWarningCount < 3) {
-                    console.warn('Buffer low:', bufferAhead.toFixed(3), 's, queue:', audioQueue.length);
-                    bufferWarningCount++;
-                }
-            } else if (bufferAhead > MIN_BUFFER) {
-                bufferWarningCount = 0;
-            }
         };
         
         // Run scheduler at moderate frequency
         schedule();
         if (!scheduleInterval) {
-            scheduleInterval = setInterval(schedule, 25);
+            scheduleInterval = setInterval(schedule, 50);
         }
     }
 
@@ -484,6 +490,7 @@ function initRadio() {
             scheduledSources = [];
             hasStartedPlayback = false;
             bufferWarningCount = 0;
+            schedulingPaused = false;
             chunkCount = 0;
             lastChunkTime = Date.now();
             
@@ -509,6 +516,7 @@ function initRadio() {
             isScheduling = false;
             hasStartedPlayback = false;
             bufferWarningCount = 0;
+            schedulingPaused = false;
             
             if (scheduleInterval) {
                 clearInterval(scheduleInterval);
