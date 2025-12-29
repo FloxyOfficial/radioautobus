@@ -275,6 +275,15 @@ function initRadio() {
     let listenerGainNode;
     let scheduledSources = [];
     let wakeLock = null;
+    
+    // Register service worker for background audio support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('Service Worker registered for background support');
+        }).catch(err => {
+            console.log('Service Worker registration failed:', err);
+        });
+    }
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -446,6 +455,11 @@ function initRadio() {
                     navigator.wakeLock.request('screen').then(lock => {
                         wakeLock = lock;
                         console.log('Wake lock acquired');
+                        
+                        // Re-acquire wake lock if page becomes visible again
+                        wakeLock.addEventListener('release', () => {
+                            console.log('Wake lock released');
+                        });
                     }).catch(err => {
                         console.log('Wake lock error:', err);
                     });
@@ -453,6 +467,23 @@ function initRadio() {
                     console.log('Wake lock not supported:', err);
                 }
             }
+            
+            // Keep audio playing when page visibility changes (mobile background)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && isPlaying && audioContext) {
+                    // Page hidden but keep playing
+                    console.log('Page hidden - keeping audio alive');
+                    if (audioContext.state === 'running') {
+                        // Audio context stays active
+                    }
+                } else if (!document.hidden && isPlaying && audioContext) {
+                    // Page visible again
+                    console.log('Page visible - audio still playing');
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                }
+            });
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
