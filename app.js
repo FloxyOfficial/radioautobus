@@ -211,7 +211,7 @@ function initRadio() {
     let audioContext;
     let audioQueue = [];
     let nextPlayTime = 0;
-    const BUFFER_LATENCY = 0.2; // 200ms buffer for smooth playback
+    let isScheduling = false;
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -297,6 +297,7 @@ function initRadio() {
             
             nextPlayTime = 0;
             audioQueue = [];
+            isScheduling = false;
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -315,6 +316,7 @@ function initRadio() {
             isPlaying = false;
             audioQueue = [];
             nextPlayTime = 0;
+            isScheduling = false;
             
             socket.emit('listener_left');
         }
