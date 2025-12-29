@@ -274,12 +274,13 @@ function initRadio() {
     let isScheduling = false;
     let listenerGainNode;
     let scheduledSources = [];
-    const MAX_QUEUE_SIZE = 200;
-    const MIN_BUFFER = 0.15;
-    const TARGET_BUFFER = 0.4;
-    const INITIAL_BUFFER_SIZE = 10;
+    const MAX_QUEUE_SIZE = 500;
+    const MIN_BUFFER = 0.3;
+    const TARGET_BUFFER = 1.5;
+    const INITIAL_BUFFER_SIZE = 30;
     let hasStartedPlayback = false;
     let scheduleInterval = null;
+    let bufferWarningCount = 0;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -331,10 +332,22 @@ function initRadio() {
         connectionStatus.classList.add('connected');
     });
 
+    let chunkCount = 0;
+    let lastChunkTime = Date.now();
+    
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
             if (audioQueue.length < MAX_QUEUE_SIZE) {
                 audioQueue.push(data);
+                chunkCount++;
+                
+                // Log chunk rate every 100 chunks
+                if (chunkCount % 100 === 0) {
+                    const now = Date.now();
+                    const rate = 100 / ((now - lastChunkTime) / 1000);
+                    console.log('Chunk rate:', rate.toFixed(1), 'chunks/sec, Queue:', audioQueue.length);
+                    lastChunkTime = now;
+                }
             }
             
             // Start playback once we have enough buffer
@@ -365,6 +378,12 @@ function initRadio() {
             
             // Initialize playback time
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
+                nextPlayTime = currentTime + MIN_BUFFER;
+            }
+            
+            // Adaptive recovery if buffer is critically low
+            if (nextPlayTime < currentTime + 0.1 && audioQueue.length > 10) {
+                console.log('Buffer recovery: resetting to', MIN_BUFFER, 's ahead');
                 nextPlayTime = currentTime + MIN_BUFFER;
             }
             
@@ -426,16 +445,21 @@ function initRadio() {
                 }
             }
             
-            // Monitor buffer health
+            // Monitor buffer health (limit warnings)
             if (bufferAhead < MIN_BUFFER && audioQueue.length === 0) {
-                console.warn('Buffer low:', bufferAhead.toFixed(3), 's');
+                if (bufferWarningCount < 3) {
+                    console.warn('Buffer low:', bufferAhead.toFixed(3), 's, queue:', audioQueue.length);
+                    bufferWarningCount++;
+                }
+            } else if (bufferAhead > MIN_BUFFER) {
+                bufferWarningCount = 0;
             }
         };
         
-        // Run scheduler at high frequency
+        // Run scheduler at moderate frequency
         schedule();
         if (!scheduleInterval) {
-            scheduleInterval = setInterval(schedule, 15);
+            scheduleInterval = setInterval(schedule, 25);
         }
     }
 
@@ -459,6 +483,9 @@ function initRadio() {
             isScheduling = false;
             scheduledSources = [];
             hasStartedPlayback = false;
+            bufferWarningCount = 0;
+            chunkCount = 0;
+            lastChunkTime = Date.now();
             
             playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
             playButton.classList.add('playing');
@@ -481,6 +508,7 @@ function initRadio() {
             nextPlayTime = 0;
             isScheduling = false;
             hasStartedPlayback = false;
+            bufferWarningCount = 0;
             
             if (scheduleInterval) {
                 clearInterval(scheduleInterval);
@@ -701,7 +729,7 @@ function initAdmin() {
             monitorGain = audioContext.createGain();
             monitorGain.gain.value = monitorControl.value / 100;
             
-            const bufferSize = 2048;
+            const bufferSize = 1024;
             const channels = isMusicMode ? 2 : 1;
             processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
             
@@ -801,7 +829,7 @@ function initAdmin() {
                 monitorGain = audioContext.createGain();
                 monitorGain.gain.value = monitorControl.value / 100;
                 
-                const bufferSize = 2048;
+                const bufferSize = 1024;
                 const channels = isMusicMode ? 2 : 1;
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
