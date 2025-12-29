@@ -527,6 +527,29 @@ function initAdmin() {
     let isFading = false;
 
     socket.emit('broadcaster');
+    
+    // Keep connection alive
+    setInterval(() => {
+        if (socket.connected && isBroadcasting) {
+            socket.emit('ping');
+        }
+    }, 10000);
+    
+    // Handle reconnection
+    socket.on('reconnect', () => {
+        console.log('Reconnected to server');
+        socket.emit('broadcaster');
+        if (isBroadcasting) {
+            socket.emit('stream_start');
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        if (isBroadcasting) {
+            broadcastStatus.textContent = '⚠️ Connection lost - attempting to reconnect...';
+        }
+    });
 
     socket.on('listener_count', (count) => {
         const suffix = currentLang === 'cs' 
@@ -694,7 +717,7 @@ function initAdmin() {
             monitorGain = audioContext.createGain();
             monitorGain.gain.value = monitorControl.value / 100;
             
-            const bufferSize = 256;
+            const bufferSize = 4096;
             const channels = isMusicMode ? 2 : 1;
             processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
             
@@ -794,45 +817,38 @@ function initAdmin() {
                 monitorGain = audioContext.createGain();
                 monitorGain.gain.value = monitorControl.value / 100;
                 
-                const bufferSize = 256;
+                const bufferSize = 4096;
                 const channels = isMusicMode ? 2 : 1;
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
-                let chunksSent = 0;
-                let lastLog = Date.now();
-                const gainValue = currentGainNode.gain.value || 1;
-                
                 processor.onaudioprocess = (e) => {
-                    if (!isBroadcasting || !socket.connected) return;
+                    if (!isBroadcasting) return;
                     
-                    const processedChannels = [];
-                    const currentGain = currentGainNode.gain.value || gainValue;
-                    
-                    for (let channel = 0; channel < channels; channel++) {
-                        const inputData = e.inputBuffer.getChannelData(channel);
-                        const processedData = new Float32Array(inputData.length);
+                    try {
+                        const processedChannels = [];
                         
-                        for (let i = 0; i < inputData.length; i++) {
-                            let sample = inputData[i] * currentGain;
-                            sample = Math.max(-1, Math.min(1, sample));
-                            processedData[i] = sample;
+                        for (let channel = 0; channel < channels; channel++) {
+                            const inputData = e.inputBuffer.getChannelData(channel);
+                            const processedData = new Float32Array(inputData.length);
+                            
+                            for (let i = 0; i < inputData.length; i++) {
+                                let sample = inputData[i] * (currentGainNode.gain.value || 1);
+                                sample = Math.max(-1, Math.min(1, sample));
+                                processedData[i] = sample;
+                            }
+                            
+                            processedChannels.push(Array.from(processedData));
                         }
                         
-                        processedChannels.push(Array.from(processedData));
-                    }
-                    
-                    socket.emit('audio_chunk', { 
-                        audioData: processedChannels,
-                        sampleRate: audioContext.sampleRate,
-                        channels: channels
-                    });
-                    
-                    chunksSent++;
-                    if (chunksSent % 400 === 0) {
-                        const now = Date.now();
-                        const rate = 400 / ((now - lastLog) / 1000);
-                        console.log('Broadcaster sending:', rate.toFixed(1), 'chunks/sec');
-                        lastLog = now;
+                        if (socket.connected) {
+                            socket.emit('audio_chunk', { 
+                                audioData: processedChannels,
+                                sampleRate: audioContext.sampleRate,
+                                channels: channels
+                            });
+                        }
+                    } catch (err) {
+                        console.error('Audio processing error:', err);
                     }
                 };
                 
@@ -844,6 +860,18 @@ function initAdmin() {
                 monitorSource = audioContext.createMediaStreamSource(micStream);
                 monitorSource.connect(monitorGain);
                 monitorGain.connect(audioContext.destination);
+                
+                // Keep audio context alive
+                const keepAlive = setInterval(() => {
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log('Audio context resumed');
+                        });
+                    }
+                    if (!isBroadcasting) {
+                        clearInterval(keepAlive);
+                    }
+                }, 5000);
                 
                 console.log('Emitting stream_start...');
                 if (socket.connected) {
