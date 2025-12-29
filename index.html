@@ -59,6 +59,17 @@
             </div>
 
             <div class="control-group">
+                <label>Režim zvuku</label>
+                <select id="audioMode">
+                    <option value="music">🎵 Hudba (vysoká kvalita)</option>
+                    <option value="voice">🎤 Hlas (potlačení šumu)</option>
+                </select>
+                <small style="display: block; margin-top: 8px; color: #666; font-size: 13px;">
+                    💡 Pro hudbu vyberte "Hudba" - vypne filtry
+                </small>
+            </div>
+
+            <div class="control-group">
                 <label>Hlasitost mikrofonu <span class="volume-value" id="volumeValue">100%</span></label>
                 <input type="range" id="volumeControl" min="0" max="100" value="100">
             </div>
