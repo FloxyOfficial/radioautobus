@@ -55,6 +55,7 @@ function initRadio() {
     let audioContext;
     let audioQueue = [];
     let nextPlayTime = 0;
+    let isProcessingQueue = false;
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -79,15 +80,20 @@ function initRadio() {
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
             audioQueue.push(data);
-            processAudioQueue();
+            
+            // Keep a small buffer to prevent gaps
+            if (!isProcessingQueue || audioQueue.length > 1) {
+                processAudioQueue();
+            }
         }
     });
 
     function processAudioQueue() {
-        if (audioQueue.length === 0 || !isPlaying) {
+        if (audioQueue.length === 0 || !isPlaying || isProcessingQueue) {
             return;
         }
 
+        isProcessingQueue = true;
         const data = audioQueue.shift();
 
         try {
@@ -116,23 +122,27 @@ function initRadio() {
             
             const currentTime = audioContext.currentTime;
             
-            // Initialize or reset timing
+            // Initialize or catch up if we fell behind
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime;
+                nextPlayTime = currentTime + 0.01; // Small delay to prevent immediate playback issues
             }
             
             source.start(nextPlayTime);
             nextPlayTime += audioBuffer.duration;
             
-            // Continue processing queue
-            if (audioQueue.length > 0) {
-                setTimeout(() => processAudioQueue(), 0);
-            }
+            source.onended = () => {
+                isProcessingQueue = false;
+                // Immediately process next if available
+                if (audioQueue.length > 0) {
+                    processAudioQueue();
+                }
+            };
             
         } catch (e) {
             console.error('Audio processing error:', e);
+            isProcessingQueue = false;
             if (audioQueue.length > 0) {
-                setTimeout(() => processAudioQueue(), 0);
+                setTimeout(() => processAudioQueue(), 10);
             }
         }
     }
