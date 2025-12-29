@@ -56,6 +56,7 @@ function initRadio() {
     let audioQueue = [];
     let isProcessing = false;
     let nextPlayTime = 0;
+    const MAX_QUEUE_SIZE = 5; // Prevent excessive buffering
 
     // Socket event listeners
     socket.on('stream_start', () => {
@@ -79,6 +80,11 @@ function initRadio() {
 
     socket.on('audio_chunk', (data) => {
         if (isPlaying && audioContext) {
+            // Prevent queue from getting too large (causes lag)
+            if (audioQueue.length > MAX_QUEUE_SIZE) {
+                console.warn('Audio queue overflow, dropping old chunks');
+                audioQueue.shift(); // Drop oldest chunk
+            }
             audioQueue.push(data);
             if (!isProcessing) {
                 processAudioQueue();
@@ -121,8 +127,17 @@ function initRadio() {
             source.connect(audioContext.destination);
             
             const currentTime = audioContext.currentTime;
-            if (nextPlayTime < currentTime) {
+            
+            // Reset timing if we've fallen too far behind
+            if (nextPlayTime < currentTime - 0.5) {
+                console.warn('Audio timing reset - was lagging');
                 nextPlayTime = currentTime;
+            }
+            
+            // Ensure we're not too far ahead either
+            if (nextPlayTime > currentTime + 1.0) {
+                console.warn('Audio timing adjusted - too much buffering');
+                nextPlayTime = currentTime + 0.2;
             }
             
             source.start(nextPlayTime);
@@ -132,7 +147,8 @@ function initRadio() {
                 processAudioQueue();
             };
             
-            if (audioQueue.length > 0) {
+            // Process next chunk immediately if queue is building up
+            if (audioQueue.length > 2) {
                 setTimeout(() => processAudioQueue(), 0);
             }
         } catch (e) {
@@ -304,7 +320,8 @@ function initAdmin() {
                 monitorGain = audioContext.createGain();
                 monitorGain.gain.value = monitorControl.value / 100;
                 
-                const bufferSize = 2048;
+                // Smaller buffer for lower latency
+                const bufferSize = 1024; // Reduced from 2048 for less lag
                 const channels = isMusicMode ? 2 : 1;
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
@@ -319,7 +336,7 @@ function initAdmin() {
                         
                         for (let i = 0; i < inputData.length; i++) {
                             let sample = inputData[i] * (gainNode.gain.value || 1);
-                            // Less aggressive clipping for music
+                            // Smoother clipping to reduce artifacts
                             if (sample > 0.98) sample = 0.98;
                             if (sample < -0.98) sample = -0.98;
                             processedData[i] = sample;
