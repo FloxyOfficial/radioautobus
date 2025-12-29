@@ -281,7 +281,8 @@ function initAdmin() {
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
-                const isMusicMode = audioMode.value === 'music';
+                // Check if audioMode exists, default to voice if not
+                const isMusicMode = audioMode && audioMode.value === 'music';
                 
                 const constraints = {
                     audio: {
