@@ -9,7 +9,12 @@ const io = socketIo(server, {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  maxHttpBufferSize: 1e8
+  maxHttpBufferSize: 1e8,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
+  perMessageDeflate: false
 });
 
 // Serve static files (HTML, CSS, JS)
@@ -29,7 +34,7 @@ io.on('connection', (socket) => {
 
   socket.on('audio_chunk', (data) => {
     if (socket.id === broadcaster) {
-      socket.broadcast.emit('audio_chunk', data);
+      socket.volatile.broadcast.emit('audio_chunk', data);
     }
   });
 
