@@ -251,7 +251,7 @@ function initRadio() {
         isScheduling = true;
         console.log('Starting audio scheduler');
         
-        // Schedule audio in batches for smoother playback
+        // Schedule audio continuously
         const schedule = () => {
             if (!isPlaying) {
                 isScheduling = false;
@@ -260,15 +260,15 @@ function initRadio() {
             
             const currentTime = audioContext.currentTime;
             
-            // Initialize nextPlayTime with buffer
+            // Initialize nextPlayTime with larger buffer for stability
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.3; // 300ms initial buffer
+                nextPlayTime = currentTime + 0.5; // 500ms initial buffer
                 console.log('Initialized playback time:', nextPlayTime);
             }
             
-            // Schedule all available chunks
+            // Schedule ALL available chunks at once
             let scheduledCount = 0;
-            while (audioQueue.length > 0 && scheduledCount < 10) {
+            while (audioQueue.length > 0) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -292,7 +292,9 @@ function initRadio() {
                     source.connect(audioContext.destination);
                     source.start(nextPlayTime);
                     
-                    console.log('Scheduled chunk at:', nextPlayTime, 'duration:', audioBuffer.duration);
+                    if (scheduledCount === 0) {
+                        console.log('Scheduled chunk at:', nextPlayTime, 'duration:', audioBuffer.duration);
+                    }
                     
                     nextPlayTime += audioBuffer.duration;
                     scheduledCount++;
@@ -302,13 +304,12 @@ function initRadio() {
                 }
             }
             
-            // Keep scheduling as long as there's audio
-            if (audioQueue.length > 0 || nextPlayTime > currentTime) {
-                setTimeout(schedule, 50); // Check every 50ms
-            } else {
-                console.log('Scheduler stopped - no more audio');
-                isScheduling = false;
+            if (scheduledCount > 0) {
+                console.log(`Scheduled ${scheduledCount} chunks`);
             }
+            
+            // Keep scheduler running continuously
+            setTimeout(schedule, 30); // Check every 30ms for new chunks
         };
         
         schedule();
