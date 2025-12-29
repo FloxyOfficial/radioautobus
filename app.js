@@ -273,7 +273,9 @@ function initRadio() {
     let nextPlayTime = 0;
     let isScheduling = false;
     let listenerGainNode;
-    const MAX_QUEUE_SIZE = 50;
+    let currentSource = null;
+    const MAX_QUEUE_SIZE = 100;
+    const TARGET_BUFFER = 0.3;
 
     // Load saved volume
     const savedVolume = localStorage.getItem('listenerVolume') || '100';
@@ -302,6 +304,13 @@ function initRadio() {
         connectionStatus.textContent = t('ready');
         connectionStatus.classList.remove('connected');
         audioQueue = [];
+        nextPlayTime = 0;
+        if (currentSource) {
+            try {
+                currentSource.stop();
+            } catch (e) {}
+            currentSource = null;
+        }
         if (isPlaying) {
             playButton.click();
         }
@@ -339,13 +348,12 @@ function initRadio() {
             const currentTime = audioContext.currentTime;
             
             if (nextPlayTime === 0 || nextPlayTime < currentTime) {
-                nextPlayTime = currentTime + 0.05;
+                nextPlayTime = currentTime + 0.1;
             }
             
             const bufferAhead = nextPlayTime - currentTime;
-            const targetBuffer = 0.2;
             
-            while (audioQueue.length > 0 && bufferAhead < targetBuffer) {
+            while (audioQueue.length > 0 && bufferAhead < TARGET_BUFFER) {
                 const data = audioQueue.shift();
                 
                 try {
@@ -367,7 +375,15 @@ function initRadio() {
                     const source = audioContext.createBufferSource();
                     source.buffer = audioBuffer;
                     source.connect(listenerGainNode);
+                    
+                    source.onended = () => {
+                        if (source === currentSource) {
+                            currentSource = null;
+                        }
+                    };
+                    
                     source.start(nextPlayTime);
+                    currentSource = source;
                     
                     nextPlayTime += audioBuffer.duration;
                     
@@ -376,7 +392,7 @@ function initRadio() {
                 }
             }
             
-            setTimeout(schedule, 50);
+            setTimeout(schedule, 30);
         };
         
         schedule();
@@ -408,7 +424,9 @@ function initRadio() {
             visualizer.classList.add('active');
             isPlaying = true;
             
-            socket.emit('listener_joined');
+            if (socket.connected) {
+                socket.emit('listener_joined');
+            }
         } else {
             playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
             playButton.classList.remove('playing');
@@ -420,7 +438,9 @@ function initRadio() {
             nextPlayTime = 0;
             isScheduling = false;
             
-            socket.emit('listener_left');
+            if (socket.connected) {
+                socket.emit('listener_left');
+            }
         }
     });
 }
@@ -452,6 +472,8 @@ function initAdmin() {
     let currentGainNode;
     let monitorGain;
     let processor;
+    let mediaStreamSource;
+    let monitorSource;
     let currentMode = 'music';
     let isFading = false;
 
@@ -567,16 +589,28 @@ function initAdmin() {
         
         if (processor) {
             processor.disconnect();
+            processor.onaudioprocess = null;
             processor = null;
+        }
+        if (mediaStreamSource) {
+            mediaStreamSource.disconnect();
+            mediaStreamSource = null;
+        }
+        if (monitorSource) {
+            monitorSource.disconnect();
+            monitorSource = null;
         }
         if (currentGainNode) {
             currentGainNode.disconnect();
+            currentGainNode = null;
         }
         if (monitorGain) {
             monitorGain.disconnect();
+            monitorGain = null;
         }
         if (micStream) {
             micStream.getTracks().forEach(track => track.stop());
+            micStream = null;
         }
         
         currentMode = newMode;
@@ -604,7 +638,7 @@ function initAdmin() {
         try {
             micStream = await navigator.mediaDevices.getUserMedia(constraints);
             
-            const source = audioContext.createMediaStreamSource(micStream);
+            mediaStreamSource = audioContext.createMediaStreamSource(micStream);
             currentGainNode = audioContext.createGain();
             currentGainNode.gain.value = 0;
             
@@ -616,7 +650,7 @@ function initAdmin() {
             processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
             
             processor.onaudioprocess = (e) => {
-                if (!isBroadcasting) return;
+                if (!isBroadcasting || !socket.connected) return;
                 
                 const processedChannels = [];
                 
@@ -633,18 +667,20 @@ function initAdmin() {
                     processedChannels.push(Array.from(processedData));
                 }
                 
-                socket.emit('audio_chunk', { 
-                    audioData: processedChannels,
-                    sampleRate: audioContext.sampleRate,
-                    channels: channels
-                });
+                if (socket.connected) {
+                    socket.emit('audio_chunk', { 
+                        audioData: processedChannels,
+                        sampleRate: audioContext.sampleRate,
+                        channels: channels
+                    });
+                }
             };
             
-            source.connect(currentGainNode);
+            mediaStreamSource.connect(currentGainNode);
             currentGainNode.connect(processor);
             processor.connect(audioContext.destination);
             
-            const monitorSource = audioContext.createMediaStreamSource(micStream);
+            monitorSource = audioContext.createMediaStreamSource(micStream);
             monitorSource.connect(monitorGain);
             monitorGain.connect(audioContext.destination);
             
@@ -701,7 +737,7 @@ function initAdmin() {
                 micStream = await navigator.mediaDevices.getUserMedia(constraints);
                 console.log('Microphone access granted');
                 
-                const source = audioContext.createMediaStreamSource(micStream);
+                mediaStreamSource = audioContext.createMediaStreamSource(micStream);
                 currentGainNode = audioContext.createGain();
                 const targetVolume = (isMusicMode ? musicVolumeControl.value : talkingVolumeControl.value) / 100;
                 currentGainNode.gain.value = targetVolume;
@@ -714,7 +750,7 @@ function initAdmin() {
                 processor = audioContext.createScriptProcessor(bufferSize, channels, channels);
                 
                 processor.onaudioprocess = (e) => {
-                    if (!isBroadcasting) return;
+                    if (!isBroadcasting || !socket.connected) return;
                     
                     const processedChannels = [];
                     
@@ -731,24 +767,28 @@ function initAdmin() {
                         processedChannels.push(Array.from(processedData));
                     }
                     
-                    socket.emit('audio_chunk', { 
-                        audioData: processedChannels,
-                        sampleRate: audioContext.sampleRate,
-                        channels: channels
-                    });
+                    if (socket.connected) {
+                        socket.emit('audio_chunk', { 
+                            audioData: processedChannels,
+                            sampleRate: audioContext.sampleRate,
+                            channels: channels
+                        });
+                    }
                 };
                 
                 console.log('Connecting audio pipeline...');
-                source.connect(currentGainNode);
+                mediaStreamSource.connect(currentGainNode);
                 currentGainNode.connect(processor);
                 processor.connect(audioContext.destination);
                 
-                const monitorSource = audioContext.createMediaStreamSource(micStream);
+                monitorSource = audioContext.createMediaStreamSource(micStream);
                 monitorSource.connect(monitorGain);
                 monitorGain.connect(audioContext.destination);
                 
                 console.log('Emitting stream_start...');
-                socket.emit('stream_start');
+                if (socket.connected) {
+                    socket.emit('stream_start');
+                }
                 
                 micButton.classList.add('active');
                 micButton.textContent = t('stopBroadcast');
@@ -768,22 +808,37 @@ function initAdmin() {
             console.log('Stopping broadcast...');
             if (processor) {
                 processor.disconnect();
+                processor.onaudioprocess = null;
                 processor = null;
+            }
+            if (mediaStreamSource) {
+                mediaStreamSource.disconnect();
+                mediaStreamSource = null;
+            }
+            if (monitorSource) {
+                monitorSource.disconnect();
+                monitorSource = null;
             }
             if (currentGainNode) {
                 currentGainNode.disconnect();
+                currentGainNode = null;
             }
             if (monitorGain) {
                 monitorGain.disconnect();
+                monitorGain = null;
             }
             if (micStream) {
                 micStream.getTracks().forEach(track => track.stop());
+                micStream = null;
             }
             if (audioContext) {
                 audioContext.close();
+                audioContext = null;
             }
             
-            socket.emit('stream_stop');
+            if (socket.connected) {
+                socket.emit('stream_stop');
+            }
             
             micButton.classList.remove('active');
             micButton.textContent = t('startBroadcast');
